@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { User, Mail, Lock, Loader2, Info, Users } from 'lucide-react';
+import { User, Mail, Lock, Loader2, Info } from 'lucide-react';
 import { translations } from '../translations';
 import { loginWithGoogle, registerWithEmail, loginWithEmail } from '../services/firebaseService';
 
@@ -45,6 +45,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ language, onLoginSuccess, onOpe
         msg = language === 'tr' 
           ? "Bu alan adı (Domain) Firebase'de yetkilendirilmemiş. Lütfen Firebase Console > Auth > Settings > Authorized Domains kısmına ekleyin." 
           : "Domain not authorized. Please add this domain to Firebase Console > Auth > Settings > Authorized Domains.";
+      } else if (msg.includes("auth/operation-not-allowed")) {
+        msg = t.auth_operationNotAllowed;
       }
       
       setToast({ message: msg, type: 'error' });
@@ -65,6 +67,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ language, onLoginSuccess, onOpe
       }
       onLoginSuccess();
     } catch (error: any) {
+      console.error("Auth Error:", error);
       let msg = error.message;
       if (msg.includes("auth/invalid-credential") || msg.includes("auth/wrong-password") || msg.includes("auth/user-not-found")) {
          msg = language === 'tr' ? "E-posta veya şifre hatalı." : "Invalid email or password.";
@@ -74,6 +77,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ language, onLoginSuccess, onOpe
       }
       if (msg.includes("auth/weak-password")) {
          msg = language === 'tr' ? "Şifre çok zayıf (en az 6 karakter)." : "Password should be at least 6 characters.";
+      }
+      if (msg.includes("auth/operation-not-allowed")) {
+        msg = t.auth_operationNotAllowed;
       }
       setToast({ message: msg, type: 'error' });
     } finally {
@@ -90,9 +96,16 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ language, onLoginSuccess, onOpe
               <Info size={18} />
               <span className="font-medium text-sm">{t.aboutBtn}</span>
             </button>
-           <div className="bg-slate-900 p-5 rounded-full shadow-2xl shadow-indigo-200 ring-4 ring-white">
-             <Users className="text-white" size={32} />
+           
+           {/* Custom Large Logo */}
+           <div className="w-24 h-24 relative shadow-2xl rounded-2xl">
+              <div className="absolute inset-0 bg-indigo-500 rounded-2xl transform rotate-6 opacity-80"></div>
+              <div className="absolute inset-0 bg-purple-500 rounded-2xl transform -rotate-3 opacity-90"></div>
+              <div className="absolute inset-0 bg-white border-2 border-slate-900 rounded-2xl flex items-center justify-center transform rotate-0">
+                  <div className="w-8 h-8 bg-yellow-400 rounded-md"></div>
+              </div>
            </div>
+
         </div>
         
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">JamWall</h1>

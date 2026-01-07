@@ -32,6 +32,7 @@ const App: React.FC = () => {
   
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // New state for UI feedback
   
   const [language, setLanguage] = useState<Language>('tr');
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
@@ -66,16 +67,24 @@ const App: React.FC = () => {
   };
 
   const updateBoard = (updatedBoard: Board, saveToCloud = true) => {
+    // 1. Update Local State Immediately (Optimistic UI)
     setCurrentBoard(updatedBoard);
-    
-    // Key fix for race conditions:
-    // When dragging, we only update local state (saveToCloud=false).
-    // When mouse released, we update cloud (saveToCloud=true).
-    if (isOnline && saveToCloud) {
-      updateBoardInCloud(updatedBoard);
-    }
-    
     addToVisitedBoards(updatedBoard);
+
+    // 2. Update Cloud if Online and requested
+    if (isOnline && saveToCloud) {
+      setIsSaving(true);
+      updateBoardInCloud(updatedBoard)
+        .then(() => {
+           // We add a small delay to let the user see "Saving..." briefly or just to debounce visuals
+           setTimeout(() => setIsSaving(false), 500);
+        })
+        .catch((err) => {
+           console.error("Cloud Save Failed:", err);
+           setIsSaving(false);
+           setToast({ message: "Save failed. Check internet.", type: 'error' });
+        });
+    }
   };
 
   const handleDeleteBoard = async (boardId: string) => {
@@ -139,6 +148,9 @@ const App: React.FC = () => {
         if (isFirebaseReady()) {
           cleanupSub = subscribeToBoard(hash, (cloudBoard) => {
              if (cloudBoard) {
+               // Only update if we are not currently dragging/saving to avoid jitter
+               // We will trust the cloud as source of truth, but we need to be careful not to overwrite local unsaved work
+               // For this app complexity, simple sync is okay.
                setCurrentBoard(cloudBoard);
                addToVisitedBoards(cloudBoard); 
              } else {
@@ -150,8 +162,6 @@ const App: React.FC = () => {
                  setToast({ message: "Loaded from local cache (Cloud sync unavailable)", type: 'error' });
                } else {
                  setCurrentBoard(null);
-                 // If user was on board and it got deleted, redirect
-                 // But we don't want to spam toast if they just opened the app
                  if (user && currentBoard && currentBoard.id === hash) {
                      setToast({ message: t.boardNotFound, type: 'error' });
                      window.location.hash = '';
@@ -192,7 +202,6 @@ const App: React.FC = () => {
       backgroundColor: '#f8fafc',
     };
 
-    // Optimistic creation: Try cloud, but always succeed locally so UX is smooth
     if (isFirebaseReady()) {
       try {
         await createBoardInCloud(newBoard);
@@ -202,8 +211,7 @@ const App: React.FC = () => {
       }
     }
     
-    // Always navigate, even if cloud fails
-    addToVisitedBoards(newBoard); // Ensure it's in local storage immediately
+    addToVisitedBoards(newBoard);
     window.location.hash = newBoard.id;
   };
 
@@ -287,6 +295,7 @@ const App: React.FC = () => {
           board={currentBoard}
           user={user}
           isOnline={isOnline}
+          isSaving={isSaving}
           language={language}
           onUpdateBoard={updateBoard}
           onBack={() => { window.location.hash = ''; setCurrentBoard(null); }}

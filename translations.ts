@@ -66,6 +66,8 @@ export const translations: Record<Language, Record<string, string>> = {
     deleteBoard: "Delete Board",
     deleteConfirm: "Are you sure you want to delete this board? This cannot be undone.",
     deleteSuccess: "Board deleted successfully.",
+    status_online: "Connected to Cloud",
+    status_offline: "Offline Mode",
     // Auth
     auth_loginTitle: "Welcome Back",
     auth_registerTitle: "Create Account",
@@ -80,6 +82,7 @@ export const translations: Record<Language, Record<string, string>> = {
     auth_haveAccount: "Already have an account?",
     auth_switchRegister: "Sign up",
     auth_switchLogin: "Log in",
+    auth_operationNotAllowed: "This sign-in method is disabled in Firebase Console.",
     // Community
     tab_myBoards: "My Boards",
     tab_community: "Community",
@@ -163,6 +166,8 @@ export const translations: Record<Language, Record<string, string>> = {
     deleteBoard: "Panoyu Sil",
     deleteConfirm: "Bu panoyu silmek istediğinize emin misiniz? Bu işlem geri alınamaz.",
     deleteSuccess: "Pano başarıyla silindi.",
+    status_online: "Buluta Bağlı",
+    status_offline: "Çevrimdışı Mod",
     // Auth
     auth_loginTitle: "Tekrar Hoşgeldin",
     auth_registerTitle: "Hesap Oluştur",
@@ -177,6 +182,7 @@ export const translations: Record<Language, Record<string, string>> = {
     auth_haveAccount: "Zaten hesabın var mı?",
     auth_switchRegister: "Kayıt ol",
     auth_switchLogin: "Giriş yap",
+    auth_operationNotAllowed: "Bu giriş yöntemi Firebase Console'da kapalı.",
     // Community
     tab_myBoards: "Panolarım",
     tab_community: "Topluluk",
@@ -260,6 +266,8 @@ export const translations: Record<Language, Record<string, string>> = {
     deleteBoard: "删除画板",
     deleteConfirm: "您确定要删除此画板吗？此操作无法撤消。",
     deleteSuccess: "画板已删除。",
+    status_online: "已连接到云",
+    status_offline: "离线模式",
     // Auth
     auth_loginTitle: "欢迎回来",
     auth_registerTitle: "创建账户",
@@ -274,6 +282,7 @@ export const translations: Record<Language, Record<string, string>> = {
     auth_haveAccount: "已有账户？",
     auth_switchRegister: "注册",
     auth_switchLogin: "登录",
+    auth_operationNotAllowed: "Firebase Console 中禁用了此登录方法。",
     // Community
     tab_myBoards: "我的画板",
     tab_community: "社区",
@@ -357,6 +366,8 @@ export const translations: Record<Language, Record<string, string>> = {
     deleteBoard: "Eliminar Tablero",
     deleteConfirm: "¿Estás seguro de que quieres eliminar este tablero? Esto no se puede deshacer.",
     deleteSuccess: "Tablero eliminado con éxito.",
+    status_online: "Conectado a la nube",
+    status_offline: "Modo sin conexión",
     // Auth
     auth_loginTitle: "Bienvenido de nuevo",
     auth_registerTitle: "Crear Cuenta",
@@ -371,6 +382,7 @@ export const translations: Record<Language, Record<string, string>> = {
     auth_haveAccount: "¿Ya tienes cuenta?",
     auth_switchRegister: "Regístrate",
     auth_switchLogin: "Inicia sesión",
+    auth_operationNotAllowed: "Este método de inicio de sesión está deshabilitado.",
     // Community
     tab_myBoards: "Mis Tableros",
     tab_community: "Comunidad",
@@ -454,6 +466,8 @@ export const translations: Record<Language, Record<string, string>> = {
     deleteBoard: "बोर्ड हटाएं",
     deleteConfirm: "क्या आप वाकई इस बोर्ड को हटाना चाहते हैं? इसे पूर्ववत नहीं किया जा सकता।",
     deleteSuccess: "बोर्ड सफलतापूर्वक हटाया गया।",
+    status_online: "क्लाउड से जुड़ा हुआ",
+    status_offline: "ऑफ़लाइन मोड",
     // Auth
     auth_loginTitle: "वापसी पर स्वागत है",
     auth_registerTitle: "खाता बनाएं",
@@ -468,6 +482,7 @@ export const translations: Record<Language, Record<string, string>> = {
     auth_haveAccount: "क्या आपके पास पहले से एक खाता है?",
     auth_switchRegister: "साइन अप करें",
     auth_switchLogin: "लॉग इन करें",
+    auth_operationNotAllowed: "यह साइन-इन विधि Firebase कंसोल में अक्षम है।",
     // Community
     tab_myBoards: "मेरे बोर्ड",
     tab_community: "समुदाय",
@@ -551,6 +566,8 @@ export const translations: Record<Language, Record<string, string>> = {
     deleteBoard: "حذف اللوحة",
     deleteConfirm: "هل أنت متأكد أنك تريد حذف هذه اللوحة؟ لا يمكن التراجع عن هذا الإجراء.",
     deleteSuccess: "تم حذف اللوحة بنجاح.",
+    status_online: "متصل بالسحابة",
+    status_offline: "وضع غير متصل بالشبكة",
     // Auth
     auth_loginTitle: "مرحبًا بعودتك",
     auth_registerTitle: "إنشاء حساب",
@@ -565,6 +582,7 @@ export const translations: Record<Language, Record<string, string>> = {
     auth_haveAccount: "هل لديك حساب بالفعل؟",
     auth_switchRegister: "سجل الآن",
     auth_switchLogin: "تسجيل الدخول",
+    auth_operationNotAllowed: "طريقة تسجيل الدخول هذه معطلة في Firebase Console.",
     // Community
     tab_myBoards: "لوحاتي",
     tab_community: "المجتمع",
@@ -648,6 +666,8 @@ export const translations: Record<Language, Record<string, string>> = {
     deleteBoard: "Supprimer le tableau",
     deleteConfirm: "Êtes-vous sûr de vouloir supprimer ce tableau ? Cette action est irréversible.",
     deleteSuccess: "Tableau supprimé avec succès.",
+    status_online: "Connecté au Cloud",
+    status_offline: "Mode Hors ligne",
     // Auth
     auth_loginTitle: "Bon retour",
     auth_registerTitle: "Créer un compte",
@@ -662,6 +682,7 @@ export const translations: Record<Language, Record<string, string>> = {
     auth_haveAccount: "Vous avez déjà un compte ?",
     auth_switchRegister: "S'inscrire",
     auth_switchLogin: "Se connecter",
+    auth_operationNotAllowed: "Cette méthode de connexion est désactivée dans la console Firebase.",
     // Community
     tab_myBoards: "Mes Tableaux",
     tab_community: "Communauté",

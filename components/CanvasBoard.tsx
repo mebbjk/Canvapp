@@ -6,12 +6,13 @@ import Toolbar from './Toolbar';
 import DrawingPad from './DrawingPad';
 import { translations } from '../translations';
 import { compressImage, generateId } from '../utils/helpers';
-import { Link as LinkIcon, Trash2, Globe, Check, Cloud, Save } from 'lucide-react';
+import { Link as LinkIcon, Trash2, Globe, Check, Cloud, Save, Loader2 } from 'lucide-react';
 
 interface CanvasBoardProps {
   board: Board;
   user: User;
   isOnline: boolean;
+  isSaving: boolean;
   language: string;
   onUpdateBoard: (board: Board, saveToCloud?: boolean) => void;
   onBack: () => void;
@@ -20,10 +21,14 @@ interface CanvasBoardProps {
 }
 
 const CanvasBoard: React.FC<CanvasBoardProps> = ({ 
-  board, user, isOnline, language, onUpdateBoard, onBack, onShare, setToast 
+  board, user, isOnline, isSaving, language, onUpdateBoard, onBack, onShare, setToast 
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   
+  // Refs to track latest state for pointer events (Solving the reverting issue)
+  // This allows us to access the absolutely latest items inside the closure of event listeners
+  const latestItemsRef = useRef<CanvasItem[]>(board.items);
+
   // Dragging / Resizing / Rotating State
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [resizingItemId, setResizingItemId] = useState<string | null>(null);
@@ -33,6 +38,14 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
   const [isGroupMode, setIsGroupMode] = useState(false);
   const [isDraggingGroup, setIsDraggingGroup] = useState(false);
   const [isResizingGroup, setIsResizingGroup] = useState(false);
+
+  // Update refs when board changes, BUT prevent overwriting if we are currently dragging/interacting
+  // This prevents the "jumping back" glitch if a cloud update comes in while dragging
+  useEffect(() => {
+    if (!draggedItemId && !resizingItemId && !rotatingItemId && !isDraggingGroup && !isResizingGroup) {
+      latestItemsRef.current = board.items;
+    }
+  }, [board.items, draggedItemId, resizingItemId, rotatingItemId, isDraggingGroup, isResizingGroup]);
 
   // Interaction tracking
   const [interactionStart, setInteractionStart] = useState({ x: 0, y: 0, rotation: 0 });
@@ -58,8 +71,6 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     
     items.forEach(item => {
-        // Approximate bounds since rotation makes it complex, using axis-aligned bounding box
-        // For better UX in simple grouping, we just use x, y + width, height
         const w = item.width || 50;
         const h = item.height || 50;
         minX = Math.min(minX, item.x);
@@ -68,14 +79,12 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
         maxY = Math.max(maxY, item.y + h);
     });
 
-    // Add some padding
     return { x: minX - 10, y: minY - 10, width: (maxX - minX) + 20, height: (maxY - minY) + 20 };
   }, [getUserItems]);
 
   // --- Actions ---
 
   const addItem = useCallback((type: ItemType, content: string, color?: string, textColor?: string) => {
-    // 1. Check Limits
     const myItems = getUserItems();
     if (board.maxItemsPerUser && board.maxItemsPerUser > 0 && myItems.length >= board.maxItemsPerUser) {
         setToast({ message: t.limitReached, type: 'error' });
@@ -97,7 +106,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
       type, content, x: viewportX + randX - 100, y: viewportY + randY - 100,
       rotation: (Math.random() - 0.5) * 10,
       author: user.name, createdAt: Date.now(), color, textColor, width, height,
-      fontSize: 20 // Default font size
+      fontSize: 20
     };
 
     const updatedBoard = { ...board, items: [...board.items, newItem] };
@@ -105,7 +114,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
   }, [board, user, onUpdateBoard, getUserItems, t, setToast]);
 
   const handleAddDrawing = (base64: string) => {
-    addItem(ItemType.IMAGE, base64); // Treat drawings as transparent stickers/images
+    addItem(ItemType.IMAGE, base64);
     setIsDrawingPadOpen(false);
   };
 
@@ -117,7 +126,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
   const deleteGroup = () => {
     const updatedBoard = { ...board, items: board.items.filter(i => i.author !== user.name) };
     onUpdateBoard(updatedBoard, true);
-    setIsGroupMode(false); // Exit group mode after deleting
+    setIsGroupMode(false);
   };
 
   const changeItemLayer = (id: string, direction: 'front' | 'back') => {
@@ -135,7 +144,6 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     onUpdateBoard({ ...board, items }, true);
   };
 
-  // Toggle Publish State
   const togglePublish = () => {
     const newStatus = !board.isPublic;
     onUpdateBoard({ ...board, isPublic: newStatus }, true);
@@ -148,7 +156,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
   // --- Pointer Events (Drag/Resize/Rotate) ---
 
   const handlePointerDown = useCallback((e: React.PointerEvent, id?: string) => {
-    if (isGroupMode) return; // In group mode, individual item drag is disabled
+    if (isGroupMode) return;
     if (id) {
       const item = board.items.find(i => i.id === id);
       if (item) {
@@ -195,13 +203,10 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     }
   }, [board, isGroupMode]);
 
-  // --- Group Pointer Events ---
-
   const handleGroupPointerDown = (e: React.PointerEvent) => {
      e.stopPropagation();
      setIsDraggingGroup(true);
      setInteractionStart({ x: e.clientX, y: e.clientY, rotation: 0 });
-     // Snapshot all user items
      setGroupInitialState({
          items: JSON.parse(JSON.stringify(getUserItems()))
      });
@@ -215,23 +220,26 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
      const bounds = getGroupBounds();
      setGroupInitialState({
          items: JSON.parse(JSON.stringify(getUserItems())),
-         bounds: bounds // Store initial bounds to calculate scale
+         bounds: bounds
      });
      (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
 
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    // Determine updated items based on move logic
+    let updatedItems = [...board.items];
+    let hasChanges = false;
+
+    const deltaX = e.clientX - interactionStart.x;
+    const deltaY = e.clientY - interactionStart.y;
+
     // --- Group Logic ---
     if (isGroupMode && (isDraggingGroup || isResizingGroup) && groupInitialState) {
         e.preventDefault();
-        const deltaX = e.clientX - interactionStart.x;
-        const deltaY = e.clientY - interactionStart.y;
-        
-        let updatedItems = [...board.items];
+        hasChanges = true;
 
         if (isDraggingGroup) {
-            // Move all items by delta
             const userItemIds = groupInitialState.items.map((i: any) => i.id);
             updatedItems = updatedItems.map(item => {
                 if (userItemIds.includes(item.id)) {
@@ -241,27 +249,18 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
                 return item;
             });
         } else if (isResizingGroup && groupInitialState.bounds) {
-             // Scale Logic
-             // New Group Width = Old Width + Delta
-             // Scale Factor = New / Old
              const initialBounds = groupInitialState.bounds;
              const newWidth = Math.max(50, initialBounds.width + deltaX);
              const newHeight = Math.max(50, initialBounds.height + deltaY);
-             
              const scaleX = newWidth / initialBounds.width;
              const scaleY = newHeight / initialBounds.height;
-
              const userItemIds = groupInitialState.items.map((i: any) => i.id);
              
              updatedItems = updatedItems.map(item => {
                 if (userItemIds.includes(item.id)) {
                     const initial = groupInitialState.items.find((i: any) => i.id === item.id);
-                    
-                    // Position relative to group top-left
                     const relX = initial.x - initialBounds.x;
                     const relY = initial.y - initialBounds.y;
-
-                    // New dimensions
                     const w = (initial.width || 50) * scaleX;
                     const h = initial.height ? (initial.height * scaleY) : undefined;
                     
@@ -271,56 +270,51 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
                         y: initialBounds.y + (relY * scaleY),
                         width: w,
                         height: h,
-                        // Attempt to scale font size reasonably
                         fontSize: initial.fontSize ? initial.fontSize * scaleX : undefined
                     };
                 }
                 return item;
              });
         }
-
-        // CRITICAL: saveToCloud = false during move
-        onUpdateBoard({ ...board, items: updatedItems }, false);
-        return;
-    }
-
+    } 
     // --- Single Item Logic ---
-    if ((!draggedItemId && !resizingItemId && !rotatingItemId) || !itemInitialState) return;
-    
-    e.preventDefault();
-    const deltaX = e.clientX - interactionStart.x;
-    const deltaY = e.clientY - interactionStart.y;
+    else if ((draggedItemId || resizingItemId || rotatingItemId) && itemInitialState) {
+        e.preventDefault();
+        hasChanges = true;
 
-    let updatedItems = board.items;
+        if (draggedItemId) {
+          updatedItems = board.items.map(item => item.id === draggedItemId ? { 
+            ...item, 
+            x: itemInitialState.x + deltaX, 
+            y: itemInitialState.y + deltaY 
+          } : item);
+        } else if (resizingItemId) {
+          updatedItems = board.items.map(item => item.id === resizingItemId ? { 
+            ...item, 
+            width: Math.max(50, (itemInitialState.width || 0) + deltaX),
+            height: itemInitialState.height ? Math.max(50, itemInitialState.height + deltaY) : undefined 
+          } : item);
+        } else if (rotatingItemId) {
+          const centerX = itemInitialState.x + (itemInitialState.width || 0) / 2;
+          const centerY = itemInitialState.y + (itemInitialState.height || 0) / 2;
+          const currentAngleRadians = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+          const angleDifferenceRadians = currentAngleRadians - interactionStart.rotation;
+          const angleDifferenceDegrees = angleDifferenceRadians * (180 / Math.PI);
+          const newRotation = (itemInitialState.rotation || 0) + angleDifferenceDegrees;
 
-    if (draggedItemId) {
-      updatedItems = board.items.map(item => item.id === draggedItemId ? { 
-        ...item, 
-        x: itemInitialState.x + deltaX, 
-        y: itemInitialState.y + deltaY 
-      } : item);
-    } else if (resizingItemId) {
-      updatedItems = board.items.map(item => item.id === resizingItemId ? { 
-        ...item, 
-        width: Math.max(50, (itemInitialState.width || 0) + deltaX),
-        height: itemInitialState.height ? Math.max(50, itemInitialState.height + deltaY) : undefined 
-      } : item);
-    } else if (rotatingItemId) {
-      const centerX = itemInitialState.x + (itemInitialState.width || 0) / 2;
-      const centerY = itemInitialState.y + (itemInitialState.height || 0) / 2;
-      const currentAngleRadians = Math.atan2(e.clientY - centerY, e.clientX - centerX);
-      const angleDifferenceRadians = currentAngleRadians - interactionStart.rotation;
-      const angleDifferenceDegrees = angleDifferenceRadians * (180 / Math.PI);
-      const newRotation = (itemInitialState.rotation || 0) + angleDifferenceDegrees;
-
-      updatedItems = board.items.map(item => item.id === rotatingItemId ? {
-        ...item,
-        rotation: newRotation
-      } : item);
+          updatedItems = board.items.map(item => item.id === rotatingItemId ? {
+            ...item,
+            rotation: newRotation
+          } : item);
+        }
     }
 
-    // CRITICAL: saveToCloud = false during move to prevent race conditions/reverting
-    onUpdateBoard({ ...board, items: updatedItems }, false);
+    if (hasChanges) {
+        // Update Ref immediately so PointerUp has access to this exact state
+        latestItemsRef.current = updatedItems;
+        // Update state locally (don't save to cloud yet)
+        onUpdateBoard({ ...board, items: updatedItems }, false);
+    }
     
   }, [draggedItemId, resizingItemId, rotatingItemId, interactionStart, itemInitialState, board, onUpdateBoard, isGroupMode, isDraggingGroup, isResizingGroup, groupInitialState]);
 
@@ -334,40 +328,14 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
       setItemInitialState(null);
       setGroupInitialState(null);
       
-      // CRITICAL: saveToCloud = true on release
-      onUpdateBoard(board, true); 
+      // CRITICAL FIX: Use the ref to get the absolute latest state that was just calculated in handlePointerMove.
+      // Relying on 'board' prop here is risky because React state updates are async/batched.
+      const finalBoardState = { ...board, items: latestItemsRef.current };
+      
+      // Save to cloud now
+      onUpdateBoard(finalBoardState, true); 
     }
   }, [draggedItemId, resizingItemId, rotatingItemId, isDraggingGroup, isResizingGroup, board, onUpdateBoard]);
-
-  // --- Paste Handler ---
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      if (isDrawingPadOpen) return;
-
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      for (const item of items) {
-        if (item.type.indexOf('image') !== -1) {
-          const file = item.getAsFile();
-          if (file) {
-            setToast({ message: "Pasting image...", type: 'success' });
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-               if(event.target?.result) {
-                   const compressed = await compressImage(event.target.result as string);
-                   addItem(ItemType.IMAGE, compressed);
-               }
-            };
-            reader.readAsDataURL(file);
-          }
-        }
-      }
-    };
-    window.addEventListener('paste', handlePaste);
-    return () => window.removeEventListener('paste', handlePaste);
-  }, [addItem, setToast, isDrawingPadOpen]);
-
 
   const getBoardStyle = () => {
     const style: React.CSSProperties = {
@@ -424,10 +392,26 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
           {/* Right: Actions */}
           <div className="pointer-events-auto flex gap-2">
             
-            {/* Auto Save Indicator (Passive) */}
-            <div className="hidden sm:flex items-center gap-1 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full border border-slate-200 text-xs font-semibold text-slate-500 shadow-sm">
-                <Cloud size={12} className="text-slate-400"/> {t.save_indicator}
-            </div>
+            {/* Save Indicator */}
+            {isOnline ? (
+                <div className="hidden sm:flex items-center gap-1 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full border border-slate-200 text-xs font-semibold text-slate-500 shadow-sm min-w-[80px] justify-center transition-all">
+                    {isSaving ? (
+                    <>
+                        <Loader2 size={12} className="animate-spin text-indigo-500"/>
+                        <span>{t.saving_indicator}</span>
+                    </>
+                    ) : (
+                    <>
+                        <Cloud size={12} className="text-slate-400"/>
+                        <span>{t.save_indicator}</span>
+                    </>
+                    )}
+                </div>
+            ) : (
+                <div className="hidden sm:flex items-center gap-1 bg-orange-50/80 backdrop-blur px-3 py-1.5 rounded-full border border-orange-200 text-xs font-semibold text-orange-600 shadow-sm transition-all">
+                     <Cloud size={12} className="text-orange-400"/> <span>{t.liveSync}</span>
+                </div>
+            )}
 
             {/* Share Link */}
             <button onClick={onShare} className="bg-white text-slate-700 border border-slate-200 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full shadow-sm font-medium hover:bg-slate-50 transition-all flex items-center gap-2 text-sm sm:text-base">

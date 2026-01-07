@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Board, ItemType } from '../types';
-import { Layout, Plus, Users, X, Info, Wifi, WifiOff, LogOut, ArrowRight, Search, Globe, Home, Trash2 } from 'lucide-react';
+import { Plus, Users, X, Info, Wifi, WifiOff, LogOut, ArrowRight, Search, Globe, Home, Trash2 } from 'lucide-react';
 import { translations } from '../translations';
 import { getPublicBoards } from '../services/firebaseService';
 
@@ -92,10 +92,16 @@ const Dashboard: React.FC<DashboardProps> = ({
     <div className="min-h-[100dvh] bg-slate-50 p-4 sm:p-6 relative overflow-y-auto">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-10 max-w-5xl mx-auto gap-4">
         <div className="flex items-center gap-3">
-           <div className="bg-indigo-600 p-2 rounded-lg">
-            <Layout className="text-white" size={20} />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-800">{t.dashboardTitle}</h1>
+           {/* Custom Logo */}
+           <div className="w-10 h-10 relative">
+              <div className="absolute inset-0 bg-indigo-500 rounded-lg transform rotate-6 opacity-80"></div>
+              <div className="absolute inset-0 bg-purple-500 rounded-lg transform -rotate-3 opacity-90"></div>
+              <div className="absolute inset-0 bg-white border-2 border-slate-900 rounded-lg flex items-center justify-center transform rotate-0 shadow-sm">
+                  <div className="w-4 h-4 bg-yellow-400 rounded-sm"></div>
+              </div>
+           </div>
+           
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{t.dashboardTitle}</h1>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
           <LanguageSelector />
@@ -123,7 +129,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className={`mb-6 p-3 rounded-xl flex items-center justify-between text-sm ${isOnline ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-orange-50 text-orange-700 border border-orange-200'}`}>
             <div className="flex items-center gap-2">
               {isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
-              {isOnline ? "Connected to Cloud." : "Offline Mode."}
+              {isOnline ? t.status_online : t.status_offline}
             </div>
             <span className="opacity-50 text-xs">{appVersion}</span>
         </div>
