@@ -1,19 +1,9 @@
-// We do not import at the top level to ensure lazy loading.
-// import { GoogleGenAI } from "@google/genai"; 
+import { GoogleGenAI } from "@google/genai";
 
 export const generateAISticker = async (prompt: string): Promise<string> => {
-  // Dynamically import the library only when the function is called.
-  const { GoogleGenAI } = await import("@google/genai");
-
-  // Check Local Storage first for User Provided Key
-  const userKey = localStorage.getItem('collab_canvas_api_key');
-  const apiKey = userKey || process.env.API_KEY;
-
-  if (!apiKey) {
-    throw new Error("API Key not found. Please add your key in Settings.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey: apiKey });
+  // Guideline: The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+  // We strictly use the environment variable and do not fall back to user input or local storage.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   // Using gemini-2.5-flash-image for generation as per guidelines for general image tasks
   // when 'imagen' isn't explicitly requested by user features.

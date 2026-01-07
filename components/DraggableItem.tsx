@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { CanvasItem, ItemType, User } from '../types';
 import { X, User as UserIcon, GripHorizontal, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
@@ -55,14 +56,14 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
   return (
     <div
       className={`absolute group select-none transition-shadow duration-200 
-        ${isDragging && !isTransparent ? 'drop-shadow-2xl scale-[1.01]' : (isTransparent ? '' : 'hover:drop-shadow-lg')} 
+        ${isDragging && !isTransparent && item.type !== ItemType.DRAWING ? 'drop-shadow-2xl scale-[1.01]' : (isTransparent || item.type === ItemType.DRAWING ? '' : 'hover:drop-shadow-lg')} 
         ${isAuthorized ? 'cursor-move' : 'cursor-default'}`}
       style={{ 
         left: 0, 
         top: 0, 
         ...getStyles(),
-        minWidth: '50px',
-        minHeight: '50px',
+        minWidth: item.type === ItemType.DRAWING ? '1px' : '50px',
+        minHeight: item.type === ItemType.DRAWING ? '1px' : '50px',
         touchAction: 'none' // Critical for mobile dragging
       }}
       onPointerDown={handlePointerDown}
@@ -137,8 +138,26 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
         </div>
       )}
 
-      {/* Resize Handle */}
-      {isAuthorized && (
+      {item.type === ItemType.DRAWING && (
+        <svg 
+          width={item.width} 
+          height={item.height} 
+          viewBox={`0 0 ${item.width} ${item.height}`} 
+          className="drop-shadow-sm overflow-visible"
+        >
+          <path 
+            d={item.content} 
+            stroke={item.textColor || '#000'} 
+            strokeWidth="4" 
+            fill="none" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+
+      {/* Resize Handle (Disable for Drawings as it distorts unless we use scale) */}
+      {isAuthorized && item.type !== ItemType.DRAWING && (
         <div 
           className="absolute bottom-0 right-0 w-8 h-8 sm:w-6 sm:h-6 cursor-nwse-resize opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-50 flex items-center justify-center text-slate-400"
           onPointerDown={handleResizePointerDown}

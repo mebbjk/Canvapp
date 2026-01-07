@@ -1,5 +1,6 @@
+
 import React, { useState, useRef } from 'react';
-import { Type, Image as ImageIcon, Smile, Sparkles, Send, X, Loader2, Ban } from 'lucide-react';
+import { Type, Image as ImageIcon, Smile, Sparkles, Send, X, Loader2, Ban, Pencil } from 'lucide-react';
 import { generateAISticker } from '../services/geminiService';
 import EmojiPicker, { EmojiClickData, Theme, EmojiStyle } from 'emoji-picker-react';
 
@@ -8,6 +9,10 @@ interface ToolbarProps {
   onAddImage: (base64: string) => void;
   onAddEmoji: (emoji: string) => void;
   onAddSticker: (stickerBase64: string) => void;
+  drawingMode: boolean;
+  setDrawingMode: (enabled: boolean) => void;
+  drawingColor: string;
+  setDrawingColor: (color: string) => void;
   t: any;
 }
 
@@ -35,7 +40,17 @@ const TEXT_COLORS = [
   '#7c3aed', // Violet
 ];
 
-const Toolbar: React.FC<ToolbarProps> = ({ onAddText, onAddImage, onAddEmoji, onAddSticker, t }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ 
+  onAddText, 
+  onAddImage, 
+  onAddEmoji, 
+  onAddSticker, 
+  drawingMode,
+  setDrawingMode,
+  drawingColor,
+  setDrawingColor,
+  t 
+}) => {
   const activeToolRef = useRef<HTMLDivElement>(null);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
@@ -81,7 +96,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onAddText, onAddImage, onAddEmoji, on
       setStickerPrompt('');
       setActiveTool(null);
     } catch (error) {
-      alert("Failed to generate sticker. Please check your API key.");
+      alert("Failed to generate sticker. The service might be temporarily unavailable.");
     } finally {
       setIsGenerating(false);
     }
@@ -92,11 +107,26 @@ const Toolbar: React.FC<ToolbarProps> = ({ onAddText, onAddImage, onAddEmoji, on
     setActiveTool(null);
   };
 
+  const toggleDrawing = () => {
+    if (drawingMode) {
+      setDrawingMode(false);
+      setActiveTool(null);
+    } else {
+      setDrawingMode(true);
+      setActiveTool(null); // Close other popups
+    }
+  };
+
+  const handleToolSelect = (tool: string | null) => {
+    setDrawingMode(false); // Disable drawing if opening another tool
+    setActiveTool(activeTool === tool ? null : tool);
+  };
+
   return (
     <div className="fixed bottom-4 sm:bottom-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-4 z-50 w-full max-w-[90vw] sm:max-w-fit">
       
       {/* Active Tool Panel */}
-      {activeTool && (
+      {activeTool && !drawingMode && (
         <div 
           ref={activeToolRef}
           className="bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-slate-200 w-full sm:w-80 animate-in slide-in-from-bottom-5 duration-300 max-h-[60vh] overflow-y-auto"
@@ -128,7 +158,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onAddText, onAddImage, onAddEmoji, on
               />
               
               <div className="space-y-2 mb-4">
-                {/* Background Color Picker */}
                 <div>
                   <label className="text-xs text-slate-500 font-medium ml-1 mb-1 block">{t.bgColor}</label>
                   <div className="flex gap-1.5 flex-wrap">
@@ -147,7 +176,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onAddText, onAddImage, onAddEmoji, on
                   </div>
                 </div>
 
-                {/* Text Color Picker */}
                 <div>
                   <label className="text-xs text-slate-500 font-medium ml-1 mb-1 block">{t.textColor}</label>
                   <div className="flex gap-1.5 flex-wrap">
@@ -208,17 +236,42 @@ const Toolbar: React.FC<ToolbarProps> = ({ onAddText, onAddImage, onAddEmoji, on
         </div>
       )}
 
+      {/* Drawing Color Selector (Shown when Drawing Mode is active) */}
+      {drawingMode && (
+         <div className="bg-white/95 backdrop-blur-md px-4 py-3 rounded-2xl shadow-xl border border-slate-200 animate-in slide-in-from-bottom-5 mb-2">
+            <div className="flex gap-2">
+               {TEXT_COLORS.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setDrawingColor(c)}
+                    className={`w-6 h-6 rounded-full border border-slate-200 shadow-sm transition-transform ${drawingColor === c ? 'ring-2 ring-indigo-500 ring-offset-2 scale-125' : 'hover:scale-110'}`}
+                    style={{ backgroundColor: c }}
+                  />
+               ))}
+               <div className="w-px h-6 bg-slate-300 mx-1"></div>
+               <button onClick={() => setDrawingMode(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+            </div>
+         </div>
+      )}
+
       {/* Main Dock */}
       <div className="bg-slate-900/90 backdrop-blur-md p-2 rounded-full shadow-xl flex items-center gap-2 border border-slate-700 max-w-full overflow-x-auto">
         <button
-          onClick={() => setActiveTool(activeTool === 'note' ? null : 'note')}
+          onClick={() => handleToolSelect('note')}
           className={`p-3 rounded-full transition-all text-white hover:bg-white/20 ${activeTool === 'note' ? 'bg-white/20' : ''}`}
           title={t.toolNote}
         >
           <Type size={20} />
         </button>
         <button
-          onClick={() => fileInputRef.current?.click()}
+          onClick={toggleDrawing}
+          className={`p-3 rounded-full transition-all text-white hover:bg-white/20 ${drawingMode ? 'bg-indigo-500 text-white ring-2 ring-indigo-300' : ''}`}
+          title={t.toolDraw}
+        >
+          <Pencil size={20} />
+        </button>
+        <button
+          onClick={() => { setDrawingMode(false); fileInputRef.current?.click(); }}
           className="p-3 rounded-full transition-all text-white hover:bg-white/20"
           title={t.toolImage}
         >
@@ -235,14 +288,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ onAddText, onAddImage, onAddEmoji, on
         <div className="w-px h-6 bg-slate-600 mx-1"></div>
 
         <button
-          onClick={() => setActiveTool(activeTool === 'emoji' ? null : 'emoji')}
+          onClick={() => handleToolSelect('emoji')}
           className={`p-3 rounded-full transition-all text-white hover:bg-white/20 ${activeTool === 'emoji' ? 'bg-white/20' : ''}`}
           title={t.toolEmoji}
         >
           <Smile size={20} />
         </button>
         <button
-          onClick={() => setActiveTool(activeTool === 'sticker' ? null : 'sticker')}
+          onClick={() => handleToolSelect('sticker')}
           className={`p-3 rounded-full transition-all text-purple-300 hover:bg-purple-500/20 hover:text-purple-200 ${activeTool === 'sticker' ? 'bg-purple-500/20 text-purple-200' : ''}`}
           title={t.toolSticker}
         >

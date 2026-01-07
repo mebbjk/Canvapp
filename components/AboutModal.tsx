@@ -70,13 +70,13 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose, t }) => {
                   </div>
                 </a>
 
-                <a href="mailto:mehmetemrebulun@outlook.com.tr" className="flex items-center gap-4 border border-slate-100 rounded-2xl p-3 hover:bg-slate-50 transition-colors shadow-sm group">
+                <a href="mailto:jamwall.canvapp@gmail.com" className="flex items-center gap-4 border border-slate-100 rounded-2xl p-3 hover:bg-slate-50 transition-colors shadow-sm group">
                   <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white group-hover:scale-110 transition-transform shrink-0">
                     <Mail size={20} />
                   </div>
                   <div className="text-left flex-1 min-w-0">
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t.about_contact}</p>
-                    <p className="font-bold text-slate-800 text-sm break-all">mehmetemrebulun@outlook.com.tr</p>
+                    <p className="font-bold text-slate-800 text-sm break-all">jamwall.canvapp@gmail.com</p>
                   </div>
                 </a>
               </div>
