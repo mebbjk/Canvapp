@@ -1,16 +1,16 @@
 
-import React, { useState, useRef } from 'react';
-import { Type, Image as ImageIcon, Smile, Sparkles, Send, X, Loader2, Ban, Pencil, Paintbrush, Maximize, Minimize, Layers, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Type, Image as ImageIcon, Smile, Sparkles, Send, X, Loader2, Ban, Pencil, Paintbrush, Maximize, Settings, Check, LayoutGrid, Palette } from 'lucide-react';
+import EmojiPicker from 'emoji-picker-react';
 import { generateAISticker } from '../services/geminiService';
-import EmojiPicker, { EmojiClickData, Theme, EmojiStyle } from 'emoji-picker-react';
-import { Board, User } from '../types';
 import { compressImage } from '../utils/helpers';
+import { Board, ItemType, User } from '../types';
 
 interface ToolbarProps {
-  onAddText: (text: string, color: string, textColor: string) => void;
+  onAddText: (text: string, color?: string, textColor?: string) => void;
   onAddImage: (base64: string) => void;
   onAddEmoji: (emoji: string) => void;
-  onAddSticker: (stickerBase64: string) => void;
+  onAddSticker: (sticker: string) => void;
   onOpenDrawingPad: () => void;
   isGroupMode: boolean;
   onToggleGroupMode: () => void;
@@ -21,136 +21,59 @@ interface ToolbarProps {
   setToast: (toast: any) => void;
 }
 
-// Pastel Background Colors (Paper like) + Dark Muted Colors + Transparent
-const BG_COLORS = [
-  // Light Pastels
-  '#fef3c7', // Cream
-  '#dcfce7', // Mint
-  '#dbeafe', // Light Blue
-  '#fce7f3', // Pink
-  '#f3f4f6', // Light Grey
-  '#ffedd5', // Peach
-  '#e0e7ff', // Lavender
-  '#ffffff', // White
-  // Dark Pastels / Muted
-  '#334155', // Slate Dark
-  '#7f1d1d', // Muted Red
-  '#14532d', // Muted Green
-  '#1e3a8a', // Muted Blue
-  '#581c87', // Muted Purple
-  '#78350f', // Muted Brown
-  // None
-  'transparent', // No Background
-];
-
-// Board Background Colors
-const BOARD_BG_COLORS = [
-  '#f8fafc', '#fff1f2', '#f0f9ff', '#f0fdf4', '#fffbeb', '#faf5ff', '#1e293b'
-];
-
-// Text Colors
-const TEXT_COLORS = [
-  '#000000', // Black
-  '#ffffff', // White
-  '#4338ca', // Indigo
-  '#059669', // Emerald
-  '#e11d48', // Rose
-  '#d97706', // Amber
-  '#7c3aed', // Violet
-  '#facc15', // Yellow (Good for dark backgrounds)
-];
-
 const Toolbar: React.FC<ToolbarProps> = ({ 
-  onAddText, 
-  onAddImage, 
-  onAddEmoji, 
-  onAddSticker, 
-  onOpenDrawingPad,
-  isGroupMode,
-  onToggleGroupMode,
-  board,
-  user,
-  onUpdateBoard,
-  t,
-  setToast
+  onAddText, onAddImage, onAddEmoji, onAddSticker, onOpenDrawingPad, 
+  isGroupMode, onToggleGroupMode, board, user, onUpdateBoard, t, setToast 
 }) => {
-  const activeToolRef = useRef<HTMLDivElement>(null);
-  const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [activeTool, setActiveTool] = useState<'text' | 'image' | 'emoji' | 'sticker' | 'settings' | null>(null);
   const [inputText, setInputText] = useState('');
-  const [isDockVisible, setIsDockVisible] = useState(true);
-  
-  // Color State
-  const [selectedBgColor, setSelectedBgColor] = useState(BG_COLORS[0]);
-  const [selectedTextColor, setSelectedTextColor] = useState(TEXT_COLORS[0]);
-  
   const [stickerPrompt, setStickerPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isUploadingBg, setIsUploadingBg] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const bgImageInputRef = useRef<HTMLInputElement>(null);
+  // Settings State
+  const [bgColor, setBgColor] = useState(board.backgroundColor || '#f8fafc');
+  const [bgImage, setBgImage] = useState(board.backgroundImage || '');
+  const [maxItems, setMaxItems] = useState(board.maxItemsPerUser || 0);
 
-  const isHost = user.name === board.host;
+  // Sync settings state when board prop changes
+  useEffect(() => {
+    setBgColor(board.backgroundColor || '#f8fafc');
+    setBgImage(board.backgroundImage || '');
+    setMaxItems(board.maxItemsPerUser || 0);
+  }, [board.backgroundColor, board.backgroundImage, board.maxItemsPerUser]);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        onAddImage(reader.result as string);
-        setActiveTool(null);
-      };
-      reader.readAsDataURL(file);
+  const [selectedColor, setSelectedColor] = useState('#fef3c7'); // Default sticky note color
+  const [selectedTextColor, setSelectedTextColor] = useState('#1e293b');
+  
+  const NOTE_COLORS = ['#fef3c7', '#dbeafe', '#fce7f3', '#dcfce7', '#f3f4f6', 'transparent'];
+  const TEXT_COLORS = ['#1e293b', '#ef4444', '#22c55e', '#3b82f6', '#a855f7', '#ffffff'];
+
+  const handlePostText = () => {
+    if (inputText.trim()) {
+      onAddText(inputText, selectedColor, selectedTextColor);
+      setInputText('');
+      setActiveTool(null);
     }
   };
 
-  const handleBgImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setIsUploadingBg(true);
-      setToast({ message: "Processing background...", type: 'success' });
-      
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
       const reader = new FileReader();
-      reader.onloadend = async () => {
-        try {
-          const base64 = reader.result as string;
-          // Force compression to ensure it fits in RTDB reasonable limits
-          const compressed = await compressImage(base64, 1280, 0.7);
-          
-          // Explicitly clear first to force update if needed (though not strictly necessary if reference changes)
-          // We apply the new background image directly
-          onUpdateBoard({
-             ...board,
-             backgroundImage: compressed,
-             backgroundColor: undefined,
-             backgroundSize: 'cover'
-          }, true);
-          setToast({ message: "Background updated!", type: 'success' });
-        } catch (error) {
-          console.error("BG Upload fail", error);
-          setToast({ message: "Failed to upload background.", type: 'error' });
-        } finally {
-            setIsUploadingBg(false);
-            if(bgImageInputRef.current) bgImageInputRef.current.value = "";
+      reader.onload = async (event) => {
+        if (event.target?.result) {
+          const compressed = await compressImage(event.target.result as string);
+          onAddImage(compressed);
+          setActiveTool(null);
         }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleTextSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (inputText.trim()) {
-      onAddText(inputText, selectedBgColor, selectedTextColor);
-      setInputText('');
-      setActiveTool(null);
-    }
-  };
-
-  const handleGenerateSticker = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGenerateSticker = async () => {
     if (!stickerPrompt.trim()) return;
-
     setIsGenerating(true);
     try {
       const stickerBase64 = await generateAISticker(stickerPrompt);
@@ -158,328 +81,254 @@ const Toolbar: React.FC<ToolbarProps> = ({
       setStickerPrompt('');
       setActiveTool(null);
     } catch (error) {
-      alert("Failed to generate sticker. The service might be temporarily unavailable.");
+      console.error(error);
+      setToast({ message: "Failed to generate sticker. Try again.", type: 'error' });
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleEmojiClick = (emojiData: EmojiClickData) => {
-    onAddEmoji(emojiData.emoji);
+  const handleSaveSettings = () => {
+    const updatedBoard = {
+        ...board,
+        backgroundColor: bgColor,
+        backgroundImage: bgImage,
+        maxItemsPerUser: maxItems
+    };
+    onUpdateBoard(updatedBoard, true);
     setActiveTool(null);
+    setToast({ message: t.save_indicator, type: 'success' });
   };
 
-  const handleToolSelect = (tool: string | null) => {
-    setActiveTool(activeTool === tool ? null : tool);
-    if(tool !== null && isGroupMode) {
-        onToggleGroupMode(); // Turn off group mode if picking a creation tool
-    }
-  };
+  const isHost = user.name === board.host;
 
-  // Prevent drawing when clicking on toolbar
-  const stopProp = (e: React.PointerEvent | React.MouseEvent) => {
-    e.stopPropagation();
-  };
+  if (!isExpanded) {
+    return (
+      <button 
+        onClick={() => setIsExpanded(true)}
+        className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white p-3 rounded-full shadow-lg hover:scale-110 transition-transform z-50"
+      >
+        <Maximize size={24} />
+      </button>
+    );
+  }
 
   return (
-    <div 
-        className="fixed bottom-4 sm:bottom-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-4 z-[200] w-full max-w-[90vw] sm:max-w-fit pointer-events-auto"
-        onPointerDown={stopProp}
-        onPointerUp={stopProp}
-        onClick={stopProp}
-    >
-      
-      {/* Active Tool Panel */}
-      {activeTool && isDockVisible && (
-        <div 
-          ref={activeToolRef}
-          className="bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-slate-200 w-full sm:w-80 animate-in slide-in-from-bottom-5 duration-300 max-h-[60vh] overflow-y-auto"
-        >
-          <div className="flex justify-between items-center mb-3 sticky top-0 bg-white/0 z-10">
-            <h3 className="font-semibold text-slate-700 capitalize">
-              {activeTool === 'note' && t.toolNote}
+    <>
+      {/* Tool Modal / Popover */}
+      {activeTool && (
+        <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 w-[90vw] max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 z-[60] animate-in slide-in-from-bottom-5 fade-in duration-200">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-bold text-slate-700">
+              {activeTool === 'text' && t.toolNote}
+              {activeTool === 'image' && t.toolImage}
               {activeTool === 'emoji' && t.toolEmoji}
               {activeTool === 'sticker' && t.toolSticker}
               {activeTool === 'settings' && t.toolSettings}
             </h3>
-            <button onClick={() => setActiveTool(null)} className="text-slate-400 hover:text-slate-600 bg-white rounded-full p-1">
-              <X size={18} />
-            </button>
+            <button onClick={() => setActiveTool(null)} className="p-1 hover:bg-slate-100 rounded-full"><X size={18} /></button>
           </div>
 
-          {activeTool === 'note' && (
-            <form onSubmit={handleTextSubmit}>
-              <textarea
+          {activeTool === 'text' && (
+            <div className="space-y-3">
+              <textarea 
                 autoFocus
+                className="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px] resize-none"
+                placeholder={t.writePlaceholder}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder={t.writePlaceholder}
-                className="w-full p-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-3 handwritten text-lg resize-none"
-                rows={3}
-                style={{ 
-                  backgroundColor: selectedBgColor === 'transparent' ? 'transparent' : selectedBgColor,
-                  color: selectedTextColor
-                }}
+                style={{ backgroundColor: selectedColor === 'transparent' ? '#fff' : selectedColor, color: selectedTextColor }}
               />
               
-              <div className="space-y-2 mb-4">
-                <div>
-                  <label className="text-xs text-slate-500 font-medium ml-1 mb-1 block">{t.bgColor}</label>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {BG_COLORS.map(c => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setSelectedBgColor(c)}
-                        className={`w-6 h-6 rounded-full border border-slate-300 shadow-sm flex items-center justify-center ${selectedBgColor === c ? 'ring-2 ring-indigo-500 ring-offset-1' : ''}`}
-                        style={{ backgroundColor: c === 'transparent' ? 'transparent' : c }}
-                        title={c === 'transparent' ? 'Transparent' : c}
-                      >
-                         {c === 'transparent' && <Ban size={12} className="text-slate-400" />}
-                      </button>
+              <div className="flex justify-between items-center">
+                 <div className="flex gap-1">
+                    {NOTE_COLORS.map(c => (
+                        <button 
+                            key={c} 
+                            onClick={() => setSelectedColor(c)}
+                            className={`w-6 h-6 rounded-full border border-slate-200 shadow-sm ${selectedColor === c ? 'ring-2 ring-indigo-500' : ''}`}
+                            style={{ backgroundColor: c === 'transparent' ? '#fff' : c, backgroundImage: c === 'transparent' ? 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%)' : 'none', backgroundSize: '8px 8px' }}
+                        />
                     ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs text-slate-500 font-medium ml-1 mb-1 block">{t.textColor}</label>
-                  <div className="flex gap-1.5 flex-wrap">
+                 </div>
+                 <div className="w-px h-6 bg-slate-200"></div>
+                 <div className="flex gap-1">
                     {TEXT_COLORS.map(c => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setSelectedTextColor(c)}
-                        className={`w-6 h-6 rounded-full border border-slate-200 shadow-sm ${selectedTextColor === c ? 'ring-2 ring-indigo-500 ring-offset-1 scale-110' : ''}`}
-                        style={{ backgroundColor: c }}
-                      />
+                        <button 
+                            key={c} 
+                            onClick={() => setSelectedTextColor(c)}
+                            className={`w-6 h-6 rounded-full border border-slate-200 shadow-sm ${selectedTextColor === c ? 'ring-2 ring-indigo-500' : ''}`}
+                            style={{ backgroundColor: c }}
+                        />
                     ))}
-                  </div>
-                </div>
+                 </div>
               </div>
 
-              <button type="submit" className="w-full bg-slate-900 text-white py-2 rounded-lg font-medium hover:bg-slate-800 transition-colors">
-                {t.postNote}
+              <button 
+                onClick={handlePostText}
+                disabled={!inputText.trim()}
+                className="w-full bg-slate-900 text-white py-2.5 rounded-xl font-semibold hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {t.postNote} <Send size={16} />
               </button>
-            </form>
+            </div>
+          )}
+
+          {activeTool === 'image' && (
+            <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl hover:bg-slate-50 transition-colors relative cursor-pointer">
+              <input 
+                type="file" 
+                accept="image/*" 
+                className="absolute inset-0 opacity-0 cursor-pointer" 
+                onChange={handleImageUpload}
+              />
+              <ImageIcon className="mx-auto text-slate-400 mb-2" size={32} />
+              <p className="text-slate-500 text-sm font-medium">{t.toolImage}</p>
+            </div>
           )}
 
           {activeTool === 'emoji' && (
-            <div className="w-full flex justify-center">
-              <EmojiPicker 
-                onEmojiClick={handleEmojiClick}
-                width="100%"
-                height="350px"
-                searchDisabled={false}
-                skinTonesDisabled={false}
-                previewConfig={{ showPreview: false }}
-                theme={Theme.LIGHT}
-              />
+            <div className="h-[300px]">
+               <EmojiPicker 
+                 onEmojiClick={(data) => { onAddEmoji(data.emoji); setActiveTool(null); }} 
+                 width="100%" 
+                 height="100%"
+                 searchDisabled={false}
+                 previewConfig={{ showPreview: false }}
+               />
             </div>
           )}
 
           {activeTool === 'sticker' && (
-            <form onSubmit={handleGenerateSticker}>
-               <p className="text-xs text-slate-500 mb-2">{t.geminiPowered}</p>
-               <input
-                autoFocus
-                type="text"
-                value={stickerPrompt}
-                onChange={(e) => setStickerPrompt(e.target.value)}
-                placeholder={t.stickerPlaceholder}
-                className="w-full p-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500 mb-3"
-              />
-               <button 
-                type="submit" 
-                disabled={isGenerating}
-                className="w-full bg-purple-600 text-white py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+            <div className="space-y-3">
+              <div className="bg-gradient-to-r from-blue-500 to-purple-500 p-0.5 rounded-xl">
+                <div className="bg-white rounded-[10px] p-3">
+                  <div className="flex items-center gap-2 mb-2 text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                     <Sparkles size={12} className="text-purple-500" /> {t.geminiPowered}
+                  </div>
+                  <input 
+                    type="text" 
+                    className="w-full p-2 border-b border-slate-100 focus:outline-none focus:border-purple-300 text-sm"
+                    placeholder={t.stickerPlaceholder}
+                    value={stickerPrompt}
+                    onChange={(e) => setStickerPrompt(e.target.value)}
+                  />
+                </div>
+              </div>
+              <button 
+                onClick={handleGenerateSticker}
+                disabled={!stickerPrompt.trim() || isGenerating}
+                className="w-full bg-slate-900 text-white py-2.5 rounded-xl font-semibold hover:bg-slate-800 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isGenerating ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
+                {isGenerating ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
                 {isGenerating ? t.generating : t.generate}
               </button>
-            </form>
+            </div>
           )}
 
           {activeTool === 'settings' && (
-             <div className="space-y-4">
-                
-                {/* HOST ONLY: Item Limits */}
-                {isHost && (
-                    <div className="bg-yellow-50 p-3 rounded-xl border border-yellow-200">
-                        <label className="text-sm font-bold text-yellow-800 mb-2 block flex items-center gap-2">
-                           <AlertCircle size={14} /> {t.itemLimitLabel}
-                        </label>
-                        <div className="flex items-center gap-2">
-                            <input 
-                                type="number"
-                                min="0"
-                                placeholder="0 = Unlimited"
-                                value={board.maxItemsPerUser || ''}
-                                onChange={(e) => onUpdateBoard({...board, maxItemsPerUser: parseInt(e.target.value) || 0}, true)}
-                                className="w-full p-2 rounded-lg border border-yellow-300 text-center"
-                            />
-                            <span className="text-xs text-yellow-600 whitespace-nowrap">
-                                {(!board.maxItemsPerUser || board.maxItemsPerUser === 0) ? t.unlimited : ''}
-                            </span>
+              <div className="space-y-4">
+                  {/* Only Host can edit board settings */}
+                  {isHost ? (
+                      <>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-2 flex items-center gap-1"><Palette size={12}/> {t.bgColor}</label>
+                            <div className="flex gap-2 flex-wrap">
+                                {['#f8fafc', '#fff1f2', '#f0f9ff', '#f0fdf4', '#faf5ff', '#1e293b'].map(c => (
+                                    <button 
+                                        key={c}
+                                        onClick={() => { setBgColor(c); setBgImage(''); }}
+                                        className={`w-8 h-8 rounded-full border shadow-sm ${bgColor === c && !bgImage ? 'ring-2 ring-indigo-500 ring-offset-2' : 'border-slate-200'}`}
+                                        style={{ backgroundColor: c }}
+                                    />
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                )}
 
-                <div>
-                   <label className="text-sm font-semibold text-slate-700 mb-2 block">{t.bgColor}</label>
-                   <div className="flex gap-2 flex-wrap">
-                      {BOARD_BG_COLORS.map(color => (
-                         <button
-                            key={color}
-                            onClick={() => onUpdateBoard({...board, backgroundColor: color, backgroundImage: undefined}, true)}
-                            className={`w-8 h-8 rounded-full border border-slate-300 shadow-sm ${board.backgroundColor === color && !board.backgroundImage ? 'ring-2 ring-indigo-500 ring-offset-1 scale-110' : ''}`}
-                            style={{backgroundColor: color}}
-                         />
-                      ))}
-                   </div>
-                </div>
+                        <div>
+                             <label className="block text-xs font-bold text-slate-500 mb-2 flex items-center gap-1"><Ban size={12}/> {t.itemLimitLabel}</label>
+                             <div className="flex items-center gap-2">
+                                <input 
+                                    type="number" 
+                                    min="0" 
+                                    max="50" 
+                                    value={maxItems}
+                                    onChange={(e) => setMaxItems(parseInt(e.target.value) || 0)}
+                                    className="w-20 p-2 border border-slate-200 rounded-lg text-center font-bold"
+                                />
+                                <span className="text-xs text-slate-400">{maxItems === 0 ? t.unlimited : ''}</span>
+                             </div>
+                        </div>
 
-                <div>
-                   <label className="text-sm font-semibold text-slate-700 mb-2 block">{t.toolImage}</label>
-                   <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      ref={bgImageInputRef}
-                      onChange={handleBgImageUpload}
-                   />
-                   <div className="flex gap-2">
-                       <button 
-                          onClick={() => bgImageInputRef.current?.click()}
-                          disabled={isUploadingBg}
-                          className="flex-1 bg-white border border-slate-300 text-slate-700 py-2 rounded-lg hover:bg-slate-50 text-sm font-medium flex justify-center items-center gap-2"
-                       >
-                          {isUploadingBg && <Loader2 size={14} className="animate-spin"/>}
-                          {board.backgroundImage ? 'Change Image' : 'Upload Image'}
-                       </button>
-                       {board.backgroundImage && (
-                          <button 
-                             onClick={() => onUpdateBoard({...board, backgroundImage: undefined, backgroundColor: BOARD_BG_COLORS[0]}, true)}
-                             className="px-3 bg-red-50 text-red-500 border border-red-200 rounded-lg hover:bg-red-100"
-                          >
-                             <X size={16} />
-                          </button>
-                       )}
-                   </div>
-                </div>
-
-                {board.backgroundImage && (
-                   <div>
-                       <label className="text-sm font-semibold text-slate-700 mb-2 block">Image Fit</label>
-                       <div className="flex gap-2">
-                          <button 
-                             onClick={() => onUpdateBoard({...board, backgroundSize: 'cover'}, true)}
-                             className={`flex-1 py-2 rounded-lg text-sm font-medium border flex items-center justify-center gap-2 ${board.backgroundSize === 'cover' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-600 border-slate-200'}`}
-                          >
-                             <Maximize size={14} /> Cover
-                          </button>
-                          <button 
-                             onClick={() => onUpdateBoard({...board, backgroundSize: 'contain'}, true)}
-                             className={`flex-1 py-2 rounded-lg text-sm font-medium border flex items-center justify-center gap-2 ${board.backgroundSize === 'contain' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-600 border-slate-200'}`}
-                          >
-                             <Minimize size={14} /> Contain
-                          </button>
-                       </div>
-                   </div>
-                )}
-             </div>
+                        <button 
+                            onClick={handleSaveSettings}
+                            className="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold hover:bg-indigo-700 flex items-center justify-center gap-2 mt-2"
+                        >
+                            <Check size={16} /> {t.settingsSave}
+                        </button>
+                      </>
+                  ) : (
+                      <div className="text-center text-slate-500 py-4 text-sm">
+                          Only the host can change board settings.
+                      </div>
+                  )}
+              </div>
           )}
         </div>
       )}
 
-      {/* Main Dock */}
-      {isDockVisible ? (
-      <div className="bg-slate-900/90 backdrop-blur-md p-2 rounded-full shadow-xl flex items-center gap-2 border border-slate-700 max-w-full overflow-x-auto animate-in slide-in-from-bottom-2">
-        <button
-          onClick={() => handleToolSelect('note')}
-          className={`p-3 rounded-full transition-all text-white hover:bg-white/20 ${activeTool === 'note' ? 'bg-white/20' : ''}`}
-          title={t.toolNote}
-        >
-          <Type size={20} />
-        </button>
-        <button
-          onClick={() => { setActiveTool(null); onOpenDrawingPad(); }}
-          className="p-3 rounded-full transition-all text-white hover:bg-white/20"
-          title={t.toolDraw}
-        >
-          <Pencil size={20} />
-        </button>
-        <button
-          onClick={() => { setActiveTool(null); fileInputRef.current?.click(); }}
-          className="p-3 rounded-full transition-all text-white hover:bg-white/20"
-          title={t.toolImage}
-        >
-          <ImageIcon size={20} />
-        </button>
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          onChange={handleImageUpload} 
-          accept="image/*" 
-          className="hidden" 
-        />
+      {/* Main Toolbar */}
+      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-md border border-slate-200 shadow-xl rounded-full px-2 py-2 flex items-center gap-1 sm:gap-2 z-50">
         
-        <div className="w-px h-6 bg-slate-600 mx-1"></div>
+        <ToolbarButton icon={<Type size={20} />} label={t.toolNote} onClick={() => setActiveTool(activeTool === 'text' ? null : 'text')} isActive={activeTool === 'text'} />
+        <ToolbarButton icon={<ImageIcon size={20} />} label={t.toolImage} onClick={() => setActiveTool(activeTool === 'image' ? null : 'image')} isActive={activeTool === 'image'} />
+        <ToolbarButton icon={<Pencil size={20} />} label={t.toolDraw} onClick={onOpenDrawingPad} />
+        <ToolbarButton icon={<Smile size={20} />} label={t.toolEmoji} onClick={() => setActiveTool(activeTool === 'emoji' ? null : 'emoji')} isActive={activeTool === 'emoji'} />
+        <ToolbarButton icon={<Sparkles size={20} />} label={t.toolSticker} onClick={() => setActiveTool(activeTool === 'sticker' ? null : 'sticker')} isActive={activeTool === 'sticker'} />
+        
+        <div className="w-px h-6 bg-slate-300 mx-1"></div>
+        
+        <ToolbarButton 
+            icon={<LayoutGrid size={20} />} 
+            label={t.toolGroup} 
+            onClick={onToggleGroupMode} 
+            isActive={isGroupMode} 
+            className={isGroupMode ? "bg-orange-100 text-orange-600 ring-2 ring-orange-400" : ""}
+        />
 
-        <button
-          onClick={() => handleToolSelect('emoji')}
-          className={`p-3 rounded-full transition-all text-white hover:bg-white/20 ${activeTool === 'emoji' ? 'bg-white/20' : ''}`}
-          title={t.toolEmoji}
-        >
-          <Smile size={20} />
-        </button>
-        <button
-          onClick={() => handleToolSelect('sticker')}
-          className={`p-3 rounded-full transition-all text-purple-300 hover:bg-purple-500/20 hover:text-purple-200 ${activeTool === 'sticker' ? 'bg-purple-500/20 text-purple-200' : ''}`}
-          title={t.toolSticker}
-        >
-          <Sparkles size={20} />
-        </button>
+        <ToolbarButton 
+            icon={<Settings size={20} />} 
+            label={t.toolSettings} 
+            onClick={() => setActiveTool(activeTool === 'settings' ? null : 'settings')}
+            isActive={activeTool === 'settings'}
+        />
 
-         <div className="w-px h-6 bg-slate-600 mx-1"></div>
-         
-         {/* Group Mode Button */}
-         <button
-          onClick={() => { setActiveTool(null); onToggleGroupMode(); }}
-          className={`p-3 rounded-full transition-all hover:bg-orange-500/20 hover:text-orange-200 ${isGroupMode ? 'bg-orange-500 text-white ring-2 ring-orange-300' : 'text-orange-300'}`}
-          title={t.toolGroup}
-        >
-          <Layers size={20} />
-        </button>
+        <div className="w-px h-6 bg-slate-300 mx-1"></div>
 
-         <button
-          onClick={() => handleToolSelect('settings')}
-          className={`p-3 rounded-full transition-all text-blue-200 hover:bg-blue-500/20 hover:text-white ${activeTool === 'settings' ? 'bg-blue-500/20 text-white' : ''}`}
-          title={t.toolSettings}
+        <button 
+            onClick={() => setIsExpanded(false)}
+            className="p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
         >
-          <Paintbrush size={20} />
+            <X size={20} />
         </button>
 
-         {/* Hide Toggle */}
-         <div className="w-px h-6 bg-slate-600 mx-1"></div>
-         <button
-            onClick={() => setIsDockVisible(false)}
-            className="p-3 rounded-full transition-all text-slate-400 hover:bg-white/10 hover:text-white"
-            title={t.toggleToolbar}
-         >
-            <ChevronDown size={20} />
-         </button>
       </div>
-      ) : (
-          <button 
-             onClick={() => setIsDockVisible(true)}
-             className="bg-slate-900/80 backdrop-blur-md p-3 rounded-full shadow-lg text-white hover:bg-slate-900 hover:scale-110 transition-all border border-slate-700"
-             title={t.toggleToolbar}
-          >
-              <ChevronUp size={24} />
-          </button>
-      )}
-    </div>
+    </>
   );
 };
+
+const ToolbarButton: React.FC<{ icon: React.ReactNode, label: string, onClick: () => void, isActive?: boolean, className?: string }> = ({ icon, label, onClick, isActive, className }) => (
+  <button 
+    onClick={onClick}
+    className={`p-3 rounded-full transition-all duration-200 group relative ${isActive ? 'bg-indigo-100 text-indigo-600 scale-110' : 'text-slate-600 hover:bg-slate-100 hover:scale-105'} ${className}`}
+    title={label}
+  >
+    {icon}
+    {/* Tooltip */}
+    <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-medium">
+      {label}
+    </span>
+  </button>
+);
 
 export default Toolbar;

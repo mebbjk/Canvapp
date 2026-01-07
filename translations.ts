@@ -68,6 +68,8 @@ export const translations: Record<Language, Record<string, string>> = {
     deleteSuccess: "Board deleted successfully.",
     status_online: "Connected to Cloud",
     status_offline: "Offline Mode",
+    manualSave: "Save Now",
+    settingsSave: "Save Settings",
     // Auth
     auth_loginTitle: "Welcome Back",
     auth_registerTitle: "Create Account",
@@ -168,6 +170,8 @@ export const translations: Record<Language, Record<string, string>> = {
     deleteSuccess: "Pano başarıyla silindi.",
     status_online: "Buluta Bağlı",
     status_offline: "Çevrimdışı Mod",
+    manualSave: "Şimdi Kaydet",
+    settingsSave: "Ayarları Kaydet",
     // Auth
     auth_loginTitle: "Tekrar Hoşgeldin",
     auth_registerTitle: "Hesap Oluştur",
@@ -268,6 +272,8 @@ export const translations: Record<Language, Record<string, string>> = {
     deleteSuccess: "画板已删除。",
     status_online: "已连接到云",
     status_offline: "离线模式",
+    manualSave: "立即保存",
+    settingsSave: "保存设置",
     // Auth
     auth_loginTitle: "欢迎回来",
     auth_registerTitle: "创建账户",
@@ -368,6 +374,8 @@ export const translations: Record<Language, Record<string, string>> = {
     deleteSuccess: "Tablero eliminado con éxito.",
     status_online: "Conectado a la nube",
     status_offline: "Modo sin conexión",
+    manualSave: "Guardar Ahora",
+    settingsSave: "Guardar Configuración",
     // Auth
     auth_loginTitle: "Bienvenido de nuevo",
     auth_registerTitle: "Crear Cuenta",
@@ -468,6 +476,8 @@ export const translations: Record<Language, Record<string, string>> = {
     deleteSuccess: "बोर्ड सफलतापूर्वक हटाया गया।",
     status_online: "क्लाउड से जुड़ा हुआ",
     status_offline: "ऑफ़लाइन मोड",
+    manualSave: "अभी सेव करें",
+    settingsSave: "सेटिंग्स सेव करें",
     // Auth
     auth_loginTitle: "वापसी पर स्वागत है",
     auth_registerTitle: "खाता बनाएं",
@@ -568,6 +578,8 @@ export const translations: Record<Language, Record<string, string>> = {
     deleteSuccess: "تم حذف اللوحة بنجاح.",
     status_online: "متصل بالسحابة",
     status_offline: "وضع غير متصل بالشبكة",
+    manualSave: "حفظ الآن",
+    settingsSave: "حفظ الإعدادات",
     // Auth
     auth_loginTitle: "مرحبًا بعودتك",
     auth_registerTitle: "إنشاء حساب",
@@ -668,6 +680,8 @@ export const translations: Record<Language, Record<string, string>> = {
     deleteSuccess: "Tableau supprimé avec succès.",
     status_online: "Connecté au Cloud",
     status_offline: "Mode Hors ligne",
+    manualSave: "Sauvegarder",
+    settingsSave: "Sauvegarder les paramètres",
     // Auth
     auth_loginTitle: "Bon retour",
     auth_registerTitle: "Créer un compte",

@@ -5,8 +5,8 @@ import DraggableItem from './DraggableItem';
 import Toolbar from './Toolbar';
 import DrawingPad from './DrawingPad';
 import { translations } from '../translations';
-import { compressImage, generateId } from '../utils/helpers';
-import { Link as LinkIcon, Trash2, Globe, Check, Cloud, Save, Loader2 } from 'lucide-react';
+import { generateId } from '../utils/helpers';
+import { Link as LinkIcon, Trash2, Globe, Save, Loader2, ArrowLeft } from 'lucide-react';
 
 interface CanvasBoardProps {
   board: Board;
@@ -25,8 +25,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   
-  // Refs to track latest state for pointer events (Solving the reverting issue)
-  // This allows us to access the absolutely latest items inside the closure of event listeners
+  // Refs to track latest state for pointer events
   const latestItemsRef = useRef<CanvasItem[]>(board.items);
 
   // Dragging / Resizing / Rotating State
@@ -39,9 +38,9 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
   const [isDraggingGroup, setIsDraggingGroup] = useState(false);
   const [isResizingGroup, setIsResizingGroup] = useState(false);
 
-  // Update refs when board changes, BUT prevent overwriting if we are currently dragging/interacting
-  // This prevents the "jumping back" glitch if a cloud update comes in while dragging
+  // Update refs when board changes
   useEffect(() => {
+    // Only update ref if we are NOT currently interacting to avoid jitter
     if (!draggedItemId && !resizingItemId && !rotatingItemId && !isDraggingGroup && !isResizingGroup) {
       latestItemsRef.current = board.items;
     }
@@ -49,8 +48,8 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
 
   // Interaction tracking
   const [interactionStart, setInteractionStart] = useState({ x: 0, y: 0, rotation: 0 });
-  const [itemInitialState, setItemInitialState] = useState<any>(null); // For single item
-  const [groupInitialState, setGroupInitialState] = useState<any>(null); // For group: { items: [], bounds: {} }
+  const [itemInitialState, setItemInitialState] = useState<any>(null); 
+  const [groupInitialState, setGroupInitialState] = useState<any>(null); 
 
   // Drawing Pad Modal State
   const [isDrawingPadOpen, setIsDrawingPadOpen] = useState(false);
@@ -84,6 +83,12 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
 
   // --- Actions ---
 
+  const handleManualSave = () => {
+      const finalBoardState = { ...board, items: latestItemsRef.current };
+      onUpdateBoard(finalBoardState, true);
+      setToast({ message: t.save_indicator, type: 'success' });
+  };
+
   const addItem = useCallback((type: ItemType, content: string, color?: string, textColor?: string) => {
     const myItems = getUserItems();
     if (board.maxItemsPerUser && board.maxItemsPerUser > 0 && myItems.length >= board.maxItemsPerUser) {
@@ -91,10 +96,11 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
         return;
     }
 
+    // Add relative to center of current view (approximate)
     const viewportX = window.innerWidth / 2;
     const viewportY = window.innerHeight / 2;
-    const randX = (Math.random() - 0.5) * 150;
-    const randY = (Math.random() - 0.5) * 150;
+    const randX = (Math.random() - 0.5) * 100;
+    const randY = (Math.random() - 0.5) * 100;
 
     let width = 200;
     let height = 200;
@@ -310,9 +316,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     }
 
     if (hasChanges) {
-        // Update Ref immediately so PointerUp has access to this exact state
         latestItemsRef.current = updatedItems;
-        // Update state locally (don't save to cloud yet)
         onUpdateBoard({ ...board, items: updatedItems }, false);
     }
     
@@ -328,11 +332,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
       setItemInitialState(null);
       setGroupInitialState(null);
       
-      // CRITICAL FIX: Use the ref to get the absolute latest state that was just calculated in handlePointerMove.
-      // Relying on 'board' prop here is risky because React state updates are async/batched.
       const finalBoardState = { ...board, items: latestItemsRef.current };
-      
-      // Save to cloud now
       onUpdateBoard(finalBoardState, true); 
     }
   }, [draggedItemId, resizingItemId, rotatingItemId, isDraggingGroup, isResizingGroup, board, onUpdateBoard]);
@@ -362,9 +362,70 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
   const isHost = user.name === board.host;
 
   return (
-    <>
+    <div className="flex flex-col h-[100dvh] overflow-hidden">
+      
+      {/* 1. SEPARATE TOP BAR STRIP */}
+      <div className="flex-none bg-white border-b border-slate-200 p-2 sm:px-4 flex items-center justify-between z-[100] shadow-sm relative">
+          
+          {/* Left: Back & Title */}
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors">
+              <ArrowLeft size={20} />
+            </button>
+            
+            <div className="flex flex-col">
+                <span className="font-bold text-slate-800 text-sm sm:text-base leading-tight truncate max-w-[150px] sm:max-w-xs">
+                    {board.topic}
+                </span>
+                
+                {/* 4. CONNECTION INDICATOR (Small Dot) */}
+                <div className="flex items-center gap-1.5 mt-0.5">
+                   <div 
+                      className={`w-2 h-2 rounded-full ${isOnline ? 'bg-yellow-400 shadow-[0_0_5px_rgba(250,204,21,0.6)]' : 'bg-slate-300'}`} 
+                      title={isOnline ? t.status_online : t.status_offline}
+                   ></div>
+                   <span className="text-[10px] text-slate-400 font-medium">
+                       {isSaving ? t.saving_indicator : (isOnline ? t.status_online : t.status_offline)}
+                   </span>
+                </div>
+            </div>
+          </div>
+          
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2">
+            
+            {/* Manual Save Button */}
+            {isOnline && (
+                <button 
+                    onClick={handleManualSave}
+                    className="p-2 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 rounded-full transition-colors relative group"
+                    title={t.manualSave}
+                >
+                    {isSaving ? <Loader2 size={18} className="animate-spin text-indigo-500"/> : <Save size={18} />}
+                </button>
+            )}
+
+            {/* Share Link */}
+            <button onClick={onShare} className="flex items-center gap-2 bg-slate-50 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-100 transition-colors text-sm font-medium">
+              <LinkIcon size={14} /> <span className="hidden sm:inline">{t.shareLink}</span>
+            </button>
+
+            {/* Publish Toggle (Host Only) */}
+            {isHost && (
+                <button 
+                    onClick={togglePublish} 
+                    className={`p-2 rounded-full transition-all ${board.isPublic ? 'bg-indigo-100 text-indigo-600' : 'text-slate-400 hover:bg-slate-100'}`}
+                    title={board.isPublic ? t.unpublish_btn : t.publish_btn}
+                >
+                    <Globe size={18} /> 
+                </button>
+            )}
+          </div>
+      </div>
+
+      {/* 2. CANVAS AREA (Fills Remaining Space) */}
       <div 
-        className="fixed inset-0 w-screen h-[100dvh] overflow-hidden relative touch-none" 
+        className="flex-1 relative touch-none overflow-hidden"
         style={getBoardStyle()} 
         onPointerDown={(e) => handlePointerDown(e)} 
         onPointerMove={handlePointerMove} 
@@ -374,65 +435,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
       >
         {!board.backgroundImage && <div className="absolute inset-0 z-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#64748b 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>}
         
-        {/* Header */}
-        <div className="absolute top-0 left-0 w-full p-2 sm:p-4 flex flex-wrap justify-between items-center z-50 pointer-events-none gap-2">
-          
-          {/* Left: Back & Title */}
-          <div className="pointer-events-auto bg-white/90 backdrop-blur-md px-3 py-1.5 sm:px-4 sm:py-2 rounded-full shadow-lg border border-slate-200 flex items-center gap-2 sm:gap-3 max-w-[50%]">
-            <button onClick={onBack} className="text-slate-500 hover:text-slate-800 font-medium transition-colors text-sm sm:text-base whitespace-nowrap">
-              {language === 'ar' ? '→' : '←'} <span className="hidden sm:inline">{t.backToDashboard}</span>
-            </button>
-            <div className="w-px h-3 sm:h-4 bg-slate-300"></div>
-            <span className="font-bold text-slate-800 flex items-center gap-2 truncate text-sm sm:text-base">
-              {board.topic}
-              {isOnline && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full border border-red-200 font-bold hidden sm:flex items-center gap-1 animate-pulse"><span className="w-1.5 h-1.5 bg-red-600 rounded-full"></span> LIVE</span>}
-            </span>
-          </div>
-          
-          {/* Right: Actions */}
-          <div className="pointer-events-auto flex gap-2">
-            
-            {/* Save Indicator */}
-            {isOnline ? (
-                <div className="hidden sm:flex items-center gap-1 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full border border-slate-200 text-xs font-semibold text-slate-500 shadow-sm min-w-[80px] justify-center transition-all">
-                    {isSaving ? (
-                    <>
-                        <Loader2 size={12} className="animate-spin text-indigo-500"/>
-                        <span>{t.saving_indicator}</span>
-                    </>
-                    ) : (
-                    <>
-                        <Cloud size={12} className="text-slate-400"/>
-                        <span>{t.save_indicator}</span>
-                    </>
-                    )}
-                </div>
-            ) : (
-                <div className="hidden sm:flex items-center gap-1 bg-orange-50/80 backdrop-blur px-3 py-1.5 rounded-full border border-orange-200 text-xs font-semibold text-orange-600 shadow-sm transition-all">
-                     <Cloud size={12} className="text-orange-400"/> <span>{t.liveSync}</span>
-                </div>
-            )}
-
-            {/* Share Link */}
-            <button onClick={onShare} className="bg-white text-slate-700 border border-slate-200 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full shadow-sm font-medium hover:bg-slate-50 transition-all flex items-center gap-2 text-sm sm:text-base">
-              <LinkIcon size={14} className="sm:w-4 sm:h-4" /> <span className="hidden sm:inline">{t.shareLink}</span>
-            </button>
-
-            {/* Publish Toggle (Host Only) */}
-            {isHost && (
-                <button 
-                    onClick={togglePublish} 
-                    className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-full shadow-lg font-medium transition-all flex items-center gap-2 text-sm sm:text-base ${board.isPublic ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-white text-slate-500 border border-slate-200 hover:text-indigo-600'}`}
-                >
-                    <Globe size={14} className="sm:w-4 sm:h-4" /> 
-                    <span className="hidden sm:inline">{board.isPublic ? t.unpublish_btn : t.publish_btn}</span>
-                </button>
-            )}
-          </div>
-        </div>
-
-        <div className="w-full h-full relative z-10 overflow-hidden">
-          {board.items.length === 0 && (
+        {board.items.length === 0 && (
             <div className={`absolute inset-0 flex items-center justify-center pointer-events-none animate-pulse px-4 ${board.backgroundImage || (board.backgroundColor && board.backgroundColor !== '#f8fafc') ? 'text-white drop-shadow-md' : 'text-slate-300'}`}>
               <div className="text-center">
                 <h2 className="text-2xl sm:text-4xl font-bold mb-2 opacity-50">{t.emptyBoardTitle}</h2>
@@ -458,7 +461,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
             />
           ))}
 
-          {/* Group Overlay Layer (Only if group mode is active and user has items) */}
+          {/* Group Overlay Layer */}
           {isGroupMode && groupBounds && (
             <div 
                 className="absolute border-2 border-orange-500 border-dashed bg-orange-500/10 cursor-move z-[60] group"
@@ -471,13 +474,10 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
                 }}
                 onPointerDown={handleGroupPointerDown}
             >
-                {/* Group Label */}
                 <div className="absolute -top-7 left-0 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-t-md flex items-center gap-2">
                     {t.toolGroup}
                     <button onPointerDown={(e) => { e.stopPropagation(); deleteGroup(); }} className="hover:text-red-200"><Trash2 size={12} /></button>
                 </div>
-                
-                {/* Resize Handle for Group */}
                 <div 
                   className="absolute bottom-0 right-0 w-8 h-8 cursor-nwse-resize flex items-center justify-center"
                   onPointerDown={handleGroupResizeDown}
@@ -486,8 +486,8 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
                 </div>
             </div>
           )}
-        </div>
-
+        
+        {/* Toolbar Floating over Canvas (Bottom Center) */}
         <Toolbar 
           onAddText={(text, color, textColor) => addItem(ItemType.TEXT, text, color, textColor)} 
           onAddImage={(base64) => addItem(ItemType.IMAGE, base64)} 
@@ -511,7 +511,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
           t={t}
         />
       )}
-    </>
+    </div>
   );
 };
 

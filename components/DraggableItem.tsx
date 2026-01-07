@@ -9,10 +9,10 @@ interface DraggableItemProps {
   hostName: string;
   onPointerDown: (e: React.PointerEvent, id: string) => void;
   onResizeStart: (e: React.PointerEvent, id: string) => void;
-  onRotateStart: (e: React.PointerEvent, id: string) => void; // New prop
+  onRotateStart: (e: React.PointerEvent, id: string) => void; 
   onDelete: (id: string) => void;
   onLayerChange: (id: string, direction: 'front' | 'back') => void;
-  onUpdate: (id: string, data: Partial<CanvasItem>) => void; // New prop for font size
+  onUpdate: (id: string, data: Partial<CanvasItem>) => void;
   isDragging: boolean;
 }
 
@@ -87,9 +87,9 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     >
       {isAuthorized && (
         <>
-          {/* Top Controls Container */}
-          <div className="absolute -top-10 left-0 w-full flex justify-center items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
-             <div className="bg-white/90 backdrop-blur rounded-full shadow-sm border border-slate-200 p-1 flex items-center gap-1 pointer-events-auto">
+          {/* Top Controls Container - Now safely renders above item without header overlap issue */}
+          <div className="absolute -top-12 left-0 w-full flex justify-center items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-[60] pointer-events-none">
+             <div className="bg-white/95 backdrop-blur rounded-full shadow-md border border-slate-200 p-1 flex items-center gap-1 pointer-events-auto">
                 {/* Layer Controls */}
                 <button 
                   onPointerDown={(e) => { e.stopPropagation(); onLayerChange(item.id, 'front'); }}
@@ -140,7 +140,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
              </div>
           </div>
 
-          {/* Rotation Handle (Bottom Center - Extended out) */}
+          {/* Rotation Handle */}
           <div 
              className="absolute -bottom-10 left-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-50 flex flex-col items-center group/rotate"
              onPointerDown={handleRotatePointerDown}
@@ -166,7 +166,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
             backgroundColor: isTransparent ? 'transparent' : (item.color || '#fef3c7'),
             color: item.textColor || '#1e293b', 
             textShadow: isTransparent ? '1px 1px 0 rgba(255,255,255,0.8)' : 'none',
-            fontSize: item.fontSize ? `${item.fontSize}px` : '20px', // Apply custom or default size
+            fontSize: item.fontSize ? `${item.fontSize}px` : '20px', 
             lineHeight: 1.4
           }}
         >
