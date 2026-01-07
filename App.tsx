@@ -12,6 +12,7 @@ import {
   createBoardInCloud, 
   subscribeToBoard, 
   updateBoardInCloud, 
+  deleteBoardFromCloud,
   isFirebaseReady, 
   subscribeToAuth,
   logoutUser
@@ -64,12 +65,37 @@ const App: React.FC = () => {
     });
   };
 
-  const updateBoard = (updatedBoard: Board) => {
+  const updateBoard = (updatedBoard: Board, saveToCloud = true) => {
     setCurrentBoard(updatedBoard);
-    if (isOnline) {
+    
+    // Key fix for race conditions:
+    // When dragging, we only update local state (saveToCloud=false).
+    // When mouse released, we update cloud (saveToCloud=true).
+    if (isOnline && saveToCloud) {
       updateBoardInCloud(updatedBoard);
     }
+    
     addToVisitedBoards(updatedBoard);
+  };
+
+  const handleDeleteBoard = async (boardId: string) => {
+     if (isOnline) {
+         try {
+             await deleteBoardFromCloud(boardId);
+             const newVisited = visitedBoards.filter(b => b.id !== boardId);
+             setVisitedBoards(newVisited);
+             localStorage.setItem(STORAGE_KEY_VISITED_BOARDS, JSON.stringify(newVisited));
+             setToast({ message: t.deleteSuccess, type: 'success' });
+         } catch (error) {
+             console.error("Delete error", error);
+             setToast({ message: "Delete failed", type: 'error' });
+         }
+     } else {
+         const newVisited = visitedBoards.filter(b => b.id !== boardId);
+         setVisitedBoards(newVisited);
+         localStorage.setItem(STORAGE_KEY_VISITED_BOARDS, JSON.stringify(newVisited));
+         setToast({ message: t.deleteSuccess + " (Local)", type: 'success' });
+     }
   };
 
   useEffect(() => {
@@ -124,7 +150,12 @@ const App: React.FC = () => {
                  setToast({ message: "Loaded from local cache (Cloud sync unavailable)", type: 'error' });
                } else {
                  setCurrentBoard(null);
-                 if (user) setToast({ message: t.boardNotFound, type: 'error' });
+                 // If user was on board and it got deleted, redirect
+                 // But we don't want to spam toast if they just opened the app
+                 if (user && currentBoard && currentBoard.id === hash) {
+                     setToast({ message: t.boardNotFound, type: 'error' });
+                     window.location.hash = '';
+                 }
                }
              }
           });
@@ -242,6 +273,7 @@ const App: React.FC = () => {
           visitedBoards={visitedBoards}
           onOpenBoard={(b) => { window.location.hash = b.id; }}
           onCreateBoard={handleCreateBoard}
+          onDeleteBoard={handleDeleteBoard}
           onLogout={handleLogout}
           onOpenAbout={() => setIsAboutOpen(true)}
           isOnline={isOnline}

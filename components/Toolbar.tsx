@@ -16,7 +16,7 @@ interface ToolbarProps {
   onToggleGroupMode: () => void;
   board: Board;
   user: User;
-  onUpdateBoard: (board: Board) => void;
+  onUpdateBoard: (board: Board, saveToCloud?: boolean) => void;
   t: any;
   setToast: (toast: any) => void;
 }
@@ -124,7 +124,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
              backgroundImage: compressed,
              backgroundColor: undefined,
              backgroundSize: 'cover'
-          });
+          }, true);
           setToast({ message: "Background updated!", type: 'success' });
         } catch (error) {
           console.error("BG Upload fail", error);
@@ -314,7 +314,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                                 min="0"
                                 placeholder="0 = Unlimited"
                                 value={board.maxItemsPerUser || ''}
-                                onChange={(e) => onUpdateBoard({...board, maxItemsPerUser: parseInt(e.target.value) || 0})}
+                                onChange={(e) => onUpdateBoard({...board, maxItemsPerUser: parseInt(e.target.value) || 0}, true)}
                                 className="w-full p-2 rounded-lg border border-yellow-300 text-center"
                             />
                             <span className="text-xs text-yellow-600 whitespace-nowrap">
@@ -330,7 +330,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                       {BOARD_BG_COLORS.map(color => (
                          <button
                             key={color}
-                            onClick={() => onUpdateBoard({...board, backgroundColor: color, backgroundImage: undefined})}
+                            onClick={() => onUpdateBoard({...board, backgroundColor: color, backgroundImage: undefined}, true)}
                             className={`w-8 h-8 rounded-full border border-slate-300 shadow-sm ${board.backgroundColor === color && !board.backgroundImage ? 'ring-2 ring-indigo-500 ring-offset-1 scale-110' : ''}`}
                             style={{backgroundColor: color}}
                          />
@@ -358,7 +358,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                        </button>
                        {board.backgroundImage && (
                           <button 
-                             onClick={() => onUpdateBoard({...board, backgroundImage: undefined, backgroundColor: BOARD_BG_COLORS[0]})}
+                             onClick={() => onUpdateBoard({...board, backgroundImage: undefined, backgroundColor: BOARD_BG_COLORS[0]}, true)}
                              className="px-3 bg-red-50 text-red-500 border border-red-200 rounded-lg hover:bg-red-100"
                           >
                              <X size={16} />
@@ -372,13 +372,13 @@ const Toolbar: React.FC<ToolbarProps> = ({
                        <label className="text-sm font-semibold text-slate-700 mb-2 block">Image Fit</label>
                        <div className="flex gap-2">
                           <button 
-                             onClick={() => onUpdateBoard({...board, backgroundSize: 'cover'})}
+                             onClick={() => onUpdateBoard({...board, backgroundSize: 'cover'}, true)}
                              className={`flex-1 py-2 rounded-lg text-sm font-medium border flex items-center justify-center gap-2 ${board.backgroundSize === 'cover' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-600 border-slate-200'}`}
                           >
                              <Maximize size={14} /> Cover
                           </button>
                           <button 
-                             onClick={() => onUpdateBoard({...board, backgroundSize: 'contain'})}
+                             onClick={() => onUpdateBoard({...board, backgroundSize: 'contain'}, true)}
                              className={`flex-1 py-2 rounded-lg text-sm font-medium border flex items-center justify-center gap-2 ${board.backgroundSize === 'contain' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-600 border-slate-200'}`}
                           >
                              <Minimize size={14} /> Contain

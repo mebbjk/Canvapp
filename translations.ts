@@ -63,6 +63,9 @@ export const translations: Record<Language, Record<string, string>> = {
     limitReached: "Item limit reached! Ask the host to increase the limit.",
     itemLimitLabel: "Max Items Per User",
     unlimited: "Unlimited (0)",
+    deleteBoard: "Delete Board",
+    deleteConfirm: "Are you sure you want to delete this board? This cannot be undone.",
+    deleteSuccess: "Board deleted successfully.",
     // Auth
     auth_loginTitle: "Welcome Back",
     auth_registerTitle: "Create Account",
@@ -157,6 +160,9 @@ export const translations: Record<Language, Record<string, string>> = {
     limitReached: "Öğe sınırına ulaşıldı! Ev sahibinden sınırı artırmasını isteyin.",
     itemLimitLabel: "Kişi Başı Öğe Sınırı",
     unlimited: "Sınırsız (0)",
+    deleteBoard: "Panoyu Sil",
+    deleteConfirm: "Bu panoyu silmek istediğinize emin misiniz? Bu işlem geri alınamaz.",
+    deleteSuccess: "Pano başarıyla silindi.",
     // Auth
     auth_loginTitle: "Tekrar Hoşgeldin",
     auth_registerTitle: "Hesap Oluştur",
@@ -251,6 +257,9 @@ export const translations: Record<Language, Record<string, string>> = {
     limitReached: "达到项目限制！请主持人增加限制。",
     itemLimitLabel: "每个用户的最大项目数",
     unlimited: "无限 (0)",
+    deleteBoard: "删除画板",
+    deleteConfirm: "您确定要删除此画板吗？此操作无法撤消。",
+    deleteSuccess: "画板已删除。",
     // Auth
     auth_loginTitle: "欢迎回来",
     auth_registerTitle: "创建账户",
@@ -345,6 +354,9 @@ export const translations: Record<Language, Record<string, string>> = {
     limitReached: "¡Límite de ítems alcanzado! Pide al anfitrión que aumente el límite.",
     itemLimitLabel: "Máx. Ítems por Usuario",
     unlimited: "Ilimitado (0)",
+    deleteBoard: "Eliminar Tablero",
+    deleteConfirm: "¿Estás seguro de que quieres eliminar este tablero? Esto no se puede deshacer.",
+    deleteSuccess: "Tablero eliminado con éxito.",
     // Auth
     auth_loginTitle: "Bienvenido de nuevo",
     auth_registerTitle: "Crear Cuenta",
@@ -439,6 +451,9 @@ export const translations: Record<Language, Record<string, string>> = {
     limitReached: "आइटम सीमा समाप्त! मेज़बान से सीमा बढ़ाने के लिए कहें।",
     itemLimitLabel: "अधिकतम आइटम प्रति उपयोगकर्ता",
     unlimited: "असीमित (0)",
+    deleteBoard: "बोर्ड हटाएं",
+    deleteConfirm: "क्या आप वाकई इस बोर्ड को हटाना चाहते हैं? इसे पूर्ववत नहीं किया जा सकता।",
+    deleteSuccess: "बोर्ड सफलतापूर्वक हटाया गया।",
     // Auth
     auth_loginTitle: "वापसी पर स्वागत है",
     auth_registerTitle: "खाता बनाएं",
@@ -533,6 +548,9 @@ export const translations: Record<Language, Record<string, string>> = {
     limitReached: "تم الوصول إلى الحد الأقصى للعناصر! اطلب من المضيف زيادة الحد.",
     itemLimitLabel: "الحد الأقصى للعناصر لكل مستخدم",
     unlimited: "غير محدود (0)",
+    deleteBoard: "حذف اللوحة",
+    deleteConfirm: "هل أنت متأكد أنك تريد حذف هذه اللوحة؟ لا يمكن التراجع عن هذا الإجراء.",
+    deleteSuccess: "تم حذف اللوحة بنجاح.",
     // Auth
     auth_loginTitle: "مرحبًا بعودتك",
     auth_registerTitle: "إنشاء حساب",
@@ -627,6 +645,9 @@ export const translations: Record<Language, Record<string, string>> = {
     limitReached: "Limite d'éléments atteinte ! Demandez à l'hôte d'augmenter la limite.",
     itemLimitLabel: "Éléments Max par Utilisateur",
     unlimited: "Illimité (0)",
+    deleteBoard: "Supprimer le tableau",
+    deleteConfirm: "Êtes-vous sûr de vouloir supprimer ce tableau ? Cette action est irréversible.",
+    deleteSuccess: "Tableau supprimé avec succès.",
     // Auth
     auth_loginTitle: "Bon retour",
     auth_registerTitle: "Créer un compte",

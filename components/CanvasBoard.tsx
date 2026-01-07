@@ -13,7 +13,7 @@ interface CanvasBoardProps {
   user: User;
   isOnline: boolean;
   language: string;
-  onUpdateBoard: (board: Board) => void;
+  onUpdateBoard: (board: Board, saveToCloud?: boolean) => void;
   onBack: () => void;
   onShare: () => void;
   setToast: (toast: any) => void;
@@ -101,7 +101,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     };
 
     const updatedBoard = { ...board, items: [...board.items, newItem] };
-    onUpdateBoard(updatedBoard);
+    onUpdateBoard(updatedBoard, true);
   }, [board, user, onUpdateBoard, getUserItems, t, setToast]);
 
   const handleAddDrawing = (base64: string) => {
@@ -111,12 +111,12 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
 
   const deleteItem = (id: string) => {
     const updatedBoard = { ...board, items: board.items.filter(i => i.id !== id) };
-    onUpdateBoard(updatedBoard);
+    onUpdateBoard(updatedBoard, true);
   };
 
   const deleteGroup = () => {
     const updatedBoard = { ...board, items: board.items.filter(i => i.author !== user.name) };
-    onUpdateBoard(updatedBoard);
+    onUpdateBoard(updatedBoard, true);
     setIsGroupMode(false); // Exit group mode after deleting
   };
 
@@ -127,18 +127,18 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     const [item] = items.splice(index, 1);
     if (direction === 'front') items.push(item);
     else items.unshift(item);
-    onUpdateBoard({ ...board, items });
+    onUpdateBoard({ ...board, items }, true);
   };
 
   const updateItem = (id: string, data: Partial<CanvasItem>) => {
     const items = board.items.map(i => i.id === id ? { ...i, ...data } : i);
-    onUpdateBoard({ ...board, items });
+    onUpdateBoard({ ...board, items }, true);
   };
 
   // Toggle Publish State
   const togglePublish = () => {
     const newStatus = !board.isPublic;
-    onUpdateBoard({ ...board, isPublic: newStatus });
+    onUpdateBoard({ ...board, isPublic: newStatus }, true);
     setToast({ 
         message: newStatus ? t.publish_confirm : t.unpublish_confirm, 
         type: 'success' 
@@ -279,7 +279,8 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
              });
         }
 
-        onUpdateBoard({ ...board, items: updatedItems });
+        // CRITICAL: saveToCloud = false during move
+        onUpdateBoard({ ...board, items: updatedItems }, false);
         return;
     }
 
@@ -318,7 +319,8 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
       } : item);
     }
 
-    onUpdateBoard({ ...board, items: updatedItems });
+    // CRITICAL: saveToCloud = false during move to prevent race conditions/reverting
+    onUpdateBoard({ ...board, items: updatedItems }, false);
     
   }, [draggedItemId, resizingItemId, rotatingItemId, interactionStart, itemInitialState, board, onUpdateBoard, isGroupMode, isDraggingGroup, isResizingGroup, groupInitialState]);
 
@@ -331,7 +333,9 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
       setIsResizingGroup(false);
       setItemInitialState(null);
       setGroupInitialState(null);
-      onUpdateBoard(board); 
+      
+      // CRITICAL: saveToCloud = true on release
+      onUpdateBoard(board, true); 
     }
   }, [draggedItemId, resizingItemId, rotatingItemId, isDraggingGroup, isResizingGroup, board, onUpdateBoard]);
 

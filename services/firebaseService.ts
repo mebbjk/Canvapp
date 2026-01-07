@@ -70,6 +70,19 @@ export const updateBoardInCloud = async (board: Board): Promise<void> => {
   }
 };
 
+export const deleteBoardFromCloud = async (boardId: string): Promise<void> => {
+    if (!db) return;
+    try {
+        const updates: any = {};
+        updates['boards/' + boardId] = null;
+        updates['public_boards/' + boardId] = null;
+        await update(ref(db), updates);
+    } catch (e) {
+        console.error("Error deleting board:", e);
+        throw e;
+    }
+}
+
 // Fetch only the metadata of public boards
 export const getPublicBoards = async (): Promise<any[]> => {
     if (!db) return [];

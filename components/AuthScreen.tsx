@@ -41,6 +41,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ language, onLoginSuccess, onOpe
         msg = language === 'tr' ? "Tarayıcı penceresi engellendi. Lütfen izin verin." : "Popup blocked by browser.";
       } else if (msg.includes("auth/account-exists-with-different-credential")) {
         msg = language === 'tr' ? "Bu e-posta ile başka bir yöntemle zaten kayıt olunmuş." : "Account exists with different credentials.";
+      } else if (msg.includes("auth/unauthorized-domain")) {
+        msg = language === 'tr' 
+          ? "Bu alan adı (Domain) Firebase'de yetkilendirilmemiş. Lütfen Firebase Console > Auth > Settings > Authorized Domains kısmına ekleyin." 
+          : "Domain not authorized. Please add this domain to Firebase Console > Auth > Settings > Authorized Domains.";
       }
       
       setToast({ message: msg, type: 'error' });

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Board, ItemType } from '../types';
-import { Layout, Plus, Users, X, Info, Wifi, WifiOff, LogOut, ArrowRight, Search, Globe, Home } from 'lucide-react';
+import { Layout, Plus, Users, X, Info, Wifi, WifiOff, LogOut, ArrowRight, Search, Globe, Home, Trash2 } from 'lucide-react';
 import { translations } from '../translations';
 import { getPublicBoards } from '../services/firebaseService';
 
@@ -10,6 +10,7 @@ interface DashboardProps {
   visitedBoards: Board[];
   onOpenBoard: (board: Board) => void;
   onCreateBoard: (topic: string) => void;
+  onDeleteBoard: (boardId: string) => void;
   onLogout: () => void;
   onOpenAbout: () => void;
   isOnline: boolean;
@@ -20,7 +21,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
-  user, visitedBoards, onOpenBoard, onCreateBoard, onLogout, onOpenAbout, 
+  user, visitedBoards, onOpenBoard, onCreateBoard, onDeleteBoard, onLogout, onOpenAbout, 
   isOnline, appVersion, language, LanguageSelector, setToast
 }) => {
   const [activeTab, setActiveTab] = useState<'my' | 'community'>('my');
@@ -72,6 +73,13 @@ const Dashboard: React.FC<DashboardProps> = ({
     e.stopPropagation();
     setIsJoinMode(false);
     setTopicInput('');
+  };
+  
+  const handleDeleteClick = (e: React.MouseEvent, boardId: string) => {
+      e.stopPropagation();
+      if (window.confirm(t.deleteConfirm)) {
+          onDeleteBoard(boardId);
+      }
   };
 
   // Filter Logic
@@ -195,6 +203,18 @@ const Dashboard: React.FC<DashboardProps> = ({
                             <div className="w-full h-full" style={{ backgroundColor: board.backgroundColor || '#f0f9ff' }}></div>
                         )}
                     </div>
+                    
+                    {/* Delete Button (Only for Host) */}
+                    {board.host === user.name && (
+                        <button 
+                            onClick={(e) => handleDeleteClick(e, board.id)}
+                            className="absolute top-2 right-2 bg-white/80 hover:bg-red-500 hover:text-white text-slate-400 p-2 rounded-full shadow-sm z-20 transition-all opacity-0 group-hover:opacity-100"
+                            title={t.deleteBoard}
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    )}
+
                     <div className="relative z-10">
                         <h3 className="text-xl font-bold text-slate-800 mb-1 truncate">{board.topic}</h3>
                         <p className="text-xs text-slate-400 flex items-center gap-1"><Users size={12} /> {t.host}: {board.host}</p>
