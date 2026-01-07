@@ -19,6 +19,7 @@ export interface CanvasItem {
   author: string;
   color?: string; // For text background
   textColor?: string; // For text font color OR drawing stroke color
+  fontSize?: number; // New: For customizable text size
   createdAt: number;
 }
 
@@ -38,4 +39,6 @@ export interface Board {
   backgroundImage?: string; // Optional background image for the board
   backgroundColor?: string; // Optional solid background color
   backgroundSize?: 'cover' | 'contain' | 'auto'; // CSS background-size property
+  maxItemsPerUser?: number; // Limit items per user (0 or null or undefined = unlimited)
+  isPublic?: boolean; // Whether the board is listed in the community feed
 }

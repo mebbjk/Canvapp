@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { X, Instagram, Mail, Copy, ArrowLeft, Heart } from 'lucide-react';
 
@@ -16,20 +17,20 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose, t }) => {
 
   return (
     <div className="fixed inset-0 bg-black/60 z-[120] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in zoom-in duration-200">
-      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden relative font-sans">
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto relative font-sans hide-scrollbar">
         
         {/* Header Background */}
-        <div className="h-24 bg-[#5b4aff] relative">
+        <div className="h-24 bg-[#5b4aff] relative shrink-0">
           <button 
             onClick={onClose}
-            className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 text-white p-1.5 rounded-full transition-colors"
+            className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 text-white p-1.5 rounded-full transition-colors z-10"
           >
             <X size={20} />
           </button>
         </div>
 
         {/* Profile Picture */}
-        <div className="absolute top-16 left-1/2 -translate-x-1/2">
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-10">
             <div className="w-24 h-24 rounded-full border-[6px] border-white bg-zinc-100 overflow-hidden shadow-sm">
                 <img src="https://github.com/mebbjk.png" alt="Profile" className="w-full h-full object-cover" />
             </div>

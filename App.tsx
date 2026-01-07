@@ -20,7 +20,7 @@ import { generateId, safeJsonParse } from './utils/helpers';
 
 const STORAGE_KEY_VISITED_BOARDS = 'collab_canvas_visited';
 const STORAGE_KEY_LANG = 'collab_canvas_lang';
-const APP_VERSION = "v3.1.1";
+const APP_VERSION = "v3.1.2";
 
 const App: React.FC = () => {
   // --- Global State ---
@@ -53,6 +53,7 @@ const App: React.FC = () => {
           host: board.host, 
           backgroundImage: board.backgroundImage, 
           backgroundColor: board.backgroundColor,
+          backgroundSize: board.backgroundSize,
           items: board.items 
         } : b);
       } else {
@@ -115,8 +116,16 @@ const App: React.FC = () => {
                setCurrentBoard(cloudBoard);
                addToVisitedBoards(cloudBoard); 
              } else {
-               setCurrentBoard(null);
-               if (user) setToast({ message: t.boardNotFound, type: 'error' });
+               // If cloud returns null (maybe permission denied or not exists), check local cache
+               const cachedBoards = safeJsonParse(localStorage.getItem(STORAGE_KEY_VISITED_BOARDS), []) as Board[];
+               const local = cachedBoards.find(b => b.id === hash);
+               if (local) {
+                 setCurrentBoard(local);
+                 setToast({ message: "Loaded from local cache (Cloud sync unavailable)", type: 'error' });
+               } else {
+                 setCurrentBoard(null);
+                 if (user) setToast({ message: t.boardNotFound, type: 'error' });
+               }
              }
           });
         } else {
@@ -140,19 +149,30 @@ const App: React.FC = () => {
 
   // --- Actions ---
 
-  const handleCreateBoard = async (topic: string, bg: string | null, bgColor: string | undefined, bgSize: any) => {
+  const handleCreateBoard = async (topic: string) => {
     if (!user) return;
     const newBoard: Board = {
       id: generateId(),
-      topic, items: [], createdAt: Date.now(), host: user.name,
-      backgroundImage: bg || undefined,
-      backgroundColor: bgColor,
-      backgroundSize: bg ? bgSize : undefined
+      topic, 
+      items: [], 
+      createdAt: Date.now(), 
+      host: user.name,
+      // Default Styling
+      backgroundColor: '#f8fafc',
     };
 
+    // Optimistic creation: Try cloud, but always succeed locally so UX is smooth
     if (isFirebaseReady()) {
-      await createBoardInCloud(newBoard);
+      try {
+        await createBoardInCloud(newBoard);
+      } catch (error) {
+        console.error("Cloud creation failed:", error);
+        setToast({ message: "Cloud sync failed, created locally.", type: 'error' });
+      }
     }
+    
+    // Always navigate, even if cloud fails
+    addToVisitedBoards(newBoard); // Ensure it's in local storage immediately
     window.location.hash = newBoard.id;
   };
 

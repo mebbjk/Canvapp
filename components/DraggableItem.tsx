@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { CanvasItem, ItemType, User } from '../types';
-import { X, User as UserIcon, GripHorizontal, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
+import { X, User as UserIcon, ArrowUpToLine, ArrowDownToLine, RefreshCw, Type, Plus, Minus } from 'lucide-react';
 
 interface DraggableItemProps {
   item: CanvasItem;
@@ -9,8 +9,10 @@ interface DraggableItemProps {
   hostName: string;
   onPointerDown: (e: React.PointerEvent, id: string) => void;
   onResizeStart: (e: React.PointerEvent, id: string) => void;
+  onRotateStart: (e: React.PointerEvent, id: string) => void; // New prop
   onDelete: (id: string) => void;
   onLayerChange: (id: string, direction: 'front' | 'back') => void;
+  onUpdate: (id: string, data: Partial<CanvasItem>) => void; // New prop for font size
   isDragging: boolean;
 }
 
@@ -20,8 +22,10 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
   hostName, 
   onPointerDown, 
   onResizeStart, 
+  onRotateStart,
   onDelete, 
   onLayerChange,
+  onUpdate,
   isDragging 
 }) => {
   
@@ -40,6 +44,19 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     if (isAuthorized) {
       onResizeStart(e, item.id);
     }
+  };
+  
+  const handleRotatePointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    if (isAuthorized) {
+      onRotateStart(e, item.id);
+    }
+  };
+
+  const handleFontSizeChange = (delta: number) => {
+    const currentSize = item.fontSize || 20; // Default base size
+    const newSize = Math.max(10, Math.min(200, currentSize + delta));
+    onUpdate(item.id, { fontSize: newSize });
   };
 
   const getStyles = () => {
@@ -70,31 +87,69 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     >
       {isAuthorized && (
         <>
-          {/* Layer Controls (Top Left) */}
-          <div className="absolute -top-3 -left-3 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-50">
-             <button 
-              onPointerDown={(e) => { e.stopPropagation(); onLayerChange(item.id, 'front'); }}
-              className="bg-white text-slate-600 rounded-full p-1.5 shadow-sm border border-slate-200 hover:bg-slate-50 hover:text-indigo-600 transition-colors"
-              title="Bring to Front"
-            >
-              <ArrowUpToLine size={12} />
-            </button>
-             <button 
-              onPointerDown={(e) => { e.stopPropagation(); onLayerChange(item.id, 'back'); }}
-              className="bg-white text-slate-600 rounded-full p-1.5 shadow-sm border border-slate-200 hover:bg-slate-50 hover:text-indigo-600 transition-colors"
-              title="Send to Back"
-            >
-              <ArrowDownToLine size={12} />
-            </button>
+          {/* Top Controls Container */}
+          <div className="absolute -top-10 left-0 w-full flex justify-center items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+             <div className="bg-white/90 backdrop-blur rounded-full shadow-sm border border-slate-200 p-1 flex items-center gap-1 pointer-events-auto">
+                {/* Layer Controls */}
+                <button 
+                  onPointerDown={(e) => { e.stopPropagation(); onLayerChange(item.id, 'front'); }}
+                  className="text-slate-500 hover:text-indigo-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
+                  title="Bring to Front"
+                >
+                  <ArrowUpToLine size={14} />
+                </button>
+                <button 
+                  onPointerDown={(e) => { e.stopPropagation(); onLayerChange(item.id, 'back'); }}
+                  className="text-slate-500 hover:text-indigo-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
+                  title="Send to Back"
+                >
+                  <ArrowDownToLine size={14} />
+                </button>
+                
+                {/* Font Size Controls (Only for Text) */}
+                {item.type === ItemType.TEXT && (
+                  <>
+                    <div className="w-px h-3 bg-slate-300 mx-1"></div>
+                    <button 
+                      onPointerDown={(e) => { e.stopPropagation(); handleFontSizeChange(-2); }}
+                      className="text-slate-500 hover:text-indigo-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors flex items-center"
+                      title="Decrease Font Size"
+                    >
+                      <Type size={10} /><Minus size={10} />
+                    </button>
+                    <button 
+                      onPointerDown={(e) => { e.stopPropagation(); handleFontSizeChange(2); }}
+                      className="text-slate-500 hover:text-indigo-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors flex items-center"
+                      title="Increase Font Size"
+                    >
+                      <Type size={12} /><Plus size={10} />
+                    </button>
+                  </>
+                )}
+
+                <div className="w-px h-3 bg-slate-300 mx-1"></div>
+                
+                {/* Delete */}
+                <button 
+                  onPointerDown={(e) => { e.stopPropagation(); onDelete(item.id); }}
+                  className="text-red-500 hover:bg-red-50 p-1.5 rounded-full transition-colors"
+                  title="Delete"
+                >
+                  <X size={14} />
+                </button>
+             </div>
           </div>
 
-          {/* Delete Button (Top Right) */}
-          <button 
-            onPointerDown={(e) => { e.stopPropagation(); onDelete(item.id); }}
-            className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-2 sm:p-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-50 shadow-sm hover:scale-110"
+          {/* Rotation Handle (Bottom Center - Extended out) */}
+          <div 
+             className="absolute -bottom-10 left-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-50 flex flex-col items-center group/rotate"
+             onPointerDown={handleRotatePointerDown}
           >
-            <X size={14} />
-          </button>
+             <div className="w-px h-4 bg-slate-400"></div>
+             <div className="bg-white text-slate-600 rounded-full p-1.5 shadow-sm border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-colors">
+               <RefreshCw size={14} />
+             </div>
+          </div>
         </>
       )}
 
@@ -106,11 +161,13 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
       {/* Content Rendering */}
       {item.type === ItemType.TEXT && (
         <div 
-          className={`handwritten text-lg sm:text-xl break-words h-full ${isTransparent ? 'p-0 drop-shadow-sm font-bold' : 'p-4 shadow-md'}`}
+          className={`handwritten break-words h-full ${isTransparent ? 'p-0 drop-shadow-sm font-bold' : 'p-4 shadow-md'}`}
           style={{ 
             backgroundColor: isTransparent ? 'transparent' : (item.color || '#fef3c7'),
             color: item.textColor || '#1e293b', 
-            textShadow: isTransparent ? '1px 1px 0 rgba(255,255,255,0.8)' : 'none'
+            textShadow: isTransparent ? '1px 1px 0 rgba(255,255,255,0.8)' : 'none',
+            fontSize: item.fontSize ? `${item.fontSize}px` : '20px', // Apply custom or default size
+            lineHeight: 1.4
           }}
         >
           {item.content}
@@ -156,7 +213,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
         </svg>
       )}
 
-      {/* Resize Handle (Disable for Drawings as it distorts unless we use scale) */}
+      {/* Resize Handle */}
       {isAuthorized && item.type !== ItemType.DRAWING && (
         <div 
           className="absolute bottom-0 right-0 w-8 h-8 sm:w-6 sm:h-6 cursor-nwse-resize opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-50 flex items-center justify-center text-slate-400"
