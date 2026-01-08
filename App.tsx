@@ -37,7 +37,7 @@ const App: React.FC = () => {
   const [language, setLanguage] = useState<Language>('tr');
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
 
   // @ts-ignore
   const t = translations[language];
@@ -157,10 +157,30 @@ const App: React.FC = () => {
                // If cloud returns null (maybe permission denied or not exists), check local cache
                const cachedBoards = safeJsonParse(localStorage.getItem(STORAGE_KEY_VISITED_BOARDS), []) as Board[];
                const local = cachedBoards.find(b => b.id === hash);
-               if (local) {
-                 setCurrentBoard(local);
-                 setToast({ message: "Loaded from local cache (Cloud sync unavailable)", type: 'error' });
+               
+               if (local && isFirebaseReady()) {
+                 // AUTO-FIX: We have it locally, but cloud is empty. 
+                 // This happens if creation failed due to network. Sync it now!
+                 setToast({ message: t.syncing, type: 'warning' });
+                 
+                 createBoardInCloud(local)
+                  .then(() => {
+                      setToast({ message: t.syncSuccess, type: 'success' });
+                      // Note: We don't need to setCurrentBoard here because
+                      // createBoardInCloud -> triggers Firebase 'value' event -> triggers this listener again with data!
+                  })
+                  .catch((e) => {
+                      console.error("Auto-sync failed:", e);
+                      // Real error (e.g. permission denied) - Fallback to local
+                      setCurrentBoard(local);
+                      setToast({ message: t.boardLoadedFromCache, type: 'warning' });
+                  });
+               } else if (local) {
+                  // Offline logic
+                  setCurrentBoard(local);
+                  setToast({ message: t.boardLoadedFromCache, type: 'warning' });
                } else {
+                 // Not found anywhere
                  setCurrentBoard(null);
                  if (user && currentBoard && currentBoard.id === hash) {
                      setToast({ message: t.boardNotFound, type: 'error' });
@@ -198,8 +218,8 @@ const App: React.FC = () => {
       items: [], 
       createdAt: Date.now(), 
       host: user.name,
-      // Default Styling
-      backgroundColor: '#f8fafc',
+      // Default Styling - Plain White to avoid patterns
+      backgroundColor: '#ffffff',
     };
 
     if (isFirebaseReady()) {

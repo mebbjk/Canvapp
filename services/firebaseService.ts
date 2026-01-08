@@ -1,6 +1,6 @@
 
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set, update, onValue, get, remove, query, orderByChild, limitToLast, Database } from "firebase/database";
+import { getDatabase, ref, set, update, onValue, get, remove, query, orderByChild, limitToLast, Database, push } from "firebase/database";
 import { 
   getAuth, 
   signInWithPopup, 
@@ -14,7 +14,7 @@ import {
   Auth
 } from "firebase/auth";
 import { firebaseConfig } from "../firebaseConfig";
-import { Board } from "../types";
+import { AppNotification, Board } from "../types";
 
 // Initialize Firebase
 let db: Database | null = null;
@@ -118,6 +118,57 @@ export const subscribeToBoard = (boardId: string, onUpdate: (board: Board | null
   });
 
   return unsubscribe; // Return cleanup function
+};
+
+// --- NOTIFICATION API ---
+
+// Sanitize username for DB path (remove ., #, $, [, ])
+const sanitizePath = (str: string) => str.replace(/[.#$[\]]/g, '_');
+
+export const sendNotification = async (targetUserName: string, fromUserName: string, boardId: string, boardTopic: string) => {
+  if (!db) return;
+  try {
+    const sanitizedHost = sanitizePath(targetUserName);
+    const notificationsRef = ref(db, `notifications/${sanitizedHost}`);
+    const newNotifRef = push(notificationsRef);
+    
+    const notification: AppNotification = {
+      id: newNotifRef.key as string,
+      fromUser: fromUserName,
+      boardId,
+      boardTopic,
+      createdAt: Date.now(),
+      read: false
+    };
+    
+    await set(newNotifRef, notification);
+  } catch (e) {
+    console.error("Failed to send notification:", e);
+  }
+};
+
+export const subscribeToNotifications = (userName: string, onUpdate: (notifs: AppNotification[]) => void) => {
+  if (!db || !userName) return () => {};
+  
+  const sanitizedHost = sanitizePath(userName);
+  const notifsRef = query(ref(db, `notifications/${sanitizedHost}`), limitToLast(20));
+  
+  return onValue(notifsRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      const list = Object.values(data) as AppNotification[];
+      // Sort newest first
+      onUpdate(list.reverse());
+    } else {
+      onUpdate([]);
+    }
+  });
+};
+
+export const clearNotifications = async (userName: string) => {
+  if (!db || !userName) return;
+  const sanitizedHost = sanitizePath(userName);
+  await remove(ref(db, `notifications/${sanitizedHost}`));
 };
 
 // --- AUTH API ---

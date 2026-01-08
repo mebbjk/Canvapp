@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Type, Image as ImageIcon, Smile, Sparkles, Send, X, Loader2, Ban, Pencil, Paintbrush, Maximize, Settings, Check, LayoutGrid, Palette } from 'lucide-react';
+import { Type, Image as ImageIcon, Smile, Sparkles, Send, X, Loader2, Ban, Pencil, MousePointer2, Settings, Check, Link as LinkIcon, Save, Globe, Palette, Trash2, MoreHorizontal } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import { generateAISticker } from '../services/geminiService';
 import { compressImage } from '../utils/helpers';
@@ -17,19 +17,26 @@ interface ToolbarProps {
   board: Board;
   user: User;
   onUpdateBoard: (board: Board, saveToCloud?: boolean) => void;
+  onShare: () => void;
+  onManualSave: () => void;
+  isSaving: boolean;
+  isOnline: boolean;
+  togglePublish: () => void;
   t: any;
   setToast: (toast: any) => void;
+  visible: boolean; // Control visibility
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({ 
   onAddText, onAddImage, onAddEmoji, onAddSticker, onOpenDrawingPad, 
-  isGroupMode, onToggleGroupMode, board, user, onUpdateBoard, t, setToast 
+  isGroupMode, onToggleGroupMode, board, user, onUpdateBoard, 
+  onShare, onManualSave, isSaving, isOnline, togglePublish,
+  t, setToast, visible
 }) => {
-  const [activeTool, setActiveTool] = useState<'text' | 'image' | 'emoji' | 'sticker' | 'settings' | null>(null);
+  const [activeTool, setActiveTool] = useState<'text' | 'image' | 'emoji' | 'sticker' | 'settings' | 'more' | null>(null);
   const [inputText, setInputText] = useState('');
   const [stickerPrompt, setStickerPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(true);
   
   // Settings State
   const [bgColor, setBgColor] = useState(board.backgroundColor || '#f8fafc');
@@ -43,7 +50,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     setMaxItems(board.maxItemsPerUser || 0);
   }, [board.backgroundColor, board.backgroundImage, board.maxItemsPerUser]);
 
-  const [selectedColor, setSelectedColor] = useState('#fef3c7'); // Default sticky note color
+  const [selectedColor, setSelectedColor] = useState('#fef3c7'); 
   const [selectedTextColor, setSelectedTextColor] = useState('#1e293b');
   
   const NOTE_COLORS = ['#fef3c7', '#dbeafe', '#fce7f3', '#dcfce7', '#f3f4f6', 'transparent'];
@@ -102,20 +109,11 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
   const isHost = user.name === board.host;
 
-  if (!isExpanded) {
-    return (
-      <button 
-        onClick={() => setIsExpanded(true)}
-        className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white p-3 rounded-full shadow-lg hover:scale-110 transition-transform z-50"
-      >
-        <Maximize size={24} />
-      </button>
-    );
-  }
+  if (!visible) return null;
 
   return (
     <>
-      {/* Tool Modal / Popover */}
+      {/* Tool Modal / Popover - Positioned above the dock */}
       {activeTool && (
         <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 w-[90vw] max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 z-[60] animate-in slide-in-from-bottom-5 fade-in duration-200">
           <div className="flex justify-between items-center mb-3">
@@ -125,6 +123,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
               {activeTool === 'emoji' && t.toolEmoji}
               {activeTool === 'sticker' && t.toolSticker}
               {activeTool === 'settings' && t.toolSettings}
+              {activeTool === 'more' && "More Actions"}
             </h3>
             <button onClick={() => setActiveTool(null)} className="p-1 hover:bg-slate-100 rounded-full"><X size={18} /></button>
           </div>
@@ -234,7 +233,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-2 flex items-center gap-1"><Palette size={12}/> {t.bgColor}</label>
                             <div className="flex gap-2 flex-wrap">
-                                {['#f8fafc', '#fff1f2', '#f0f9ff', '#f0fdf4', '#faf5ff', '#1e293b'].map(c => (
+                                {['#f8fafc', '#fff1f2', '#f0f9ff', '#f0f9ff', '#faf5ff', '#1e293b'].map(c => (
                                     <button 
                                         key={c}
                                         onClick={() => { setBgColor(c); setBgImage(''); }}
@@ -274,44 +273,67 @@ const Toolbar: React.FC<ToolbarProps> = ({
                   )}
               </div>
           )}
+
+          {activeTool === 'more' && (
+              <div className="flex flex-col gap-2">
+                  <button onClick={onShare} className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors text-left text-slate-700 font-medium">
+                      <LinkIcon size={20} className="text-indigo-500" />
+                      {t.shareLink}
+                  </button>
+                  {isHost && (
+                      <button onClick={togglePublish} className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors text-left text-slate-700 font-medium">
+                          <Globe size={20} className={board.isPublic ? "text-green-500" : "text-slate-400"} />
+                          {board.isPublic ? t.unpublish_btn : t.publish_btn}
+                      </button>
+                  )}
+                  {isOnline && (
+                      <button onClick={onManualSave} className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors text-left text-slate-700 font-medium">
+                           {isSaving ? <Loader2 size={20} className="animate-spin text-indigo-500" /> : <Save size={20} className="text-emerald-500" />}
+                           {t.manualSave}
+                      </button>
+                  )}
+              </div>
+          )}
         </div>
       )}
 
-      {/* Main Toolbar */}
-      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-md border border-slate-200 shadow-xl rounded-full px-2 py-2 flex items-center gap-1 sm:gap-2 z-50">
-        
-        <ToolbarButton icon={<Type size={20} />} label={t.toolNote} onClick={() => setActiveTool(activeTool === 'text' ? null : 'text')} isActive={activeTool === 'text'} />
-        <ToolbarButton icon={<ImageIcon size={20} />} label={t.toolImage} onClick={() => setActiveTool(activeTool === 'image' ? null : 'image')} isActive={activeTool === 'image'} />
-        <ToolbarButton icon={<Pencil size={20} />} label={t.toolDraw} onClick={onOpenDrawingPad} />
-        <ToolbarButton icon={<Smile size={20} />} label={t.toolEmoji} onClick={() => setActiveTool(activeTool === 'emoji' ? null : 'emoji')} isActive={activeTool === 'emoji'} />
-        <ToolbarButton icon={<Sparkles size={20} />} label={t.toolSticker} onClick={() => setActiveTool(activeTool === 'sticker' ? null : 'sticker')} isActive={activeTool === 'sticker'} />
-        
-        <div className="w-px h-6 bg-slate-300 mx-1"></div>
-        
-        <ToolbarButton 
-            icon={<LayoutGrid size={20} />} 
-            label={t.toolGroup} 
-            onClick={onToggleGroupMode} 
-            isActive={isGroupMode} 
-            className={isGroupMode ? "bg-orange-100 text-orange-600 ring-2 ring-orange-400" : ""}
-        />
+      {/* Main Bottom Dock */}
+      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-50">
+        <div className="bg-white/80 backdrop-blur-xl border border-white/40 shadow-2xl rounded-2xl px-3 py-2 flex items-center gap-2 scale-100 origin-bottom transition-all duration-300 ring-1 ring-black/5">
+            
+            <ToolbarButton icon={<Type size={20} />} label={t.toolNote} onClick={() => setActiveTool(activeTool === 'text' ? null : 'text')} isActive={activeTool === 'text'} />
+            <ToolbarButton icon={<ImageIcon size={20} />} label={t.toolImage} onClick={() => setActiveTool(activeTool === 'image' ? null : 'image')} isActive={activeTool === 'image'} />
+            <ToolbarButton icon={<Pencil size={20} />} label={t.toolDraw} onClick={onOpenDrawingPad} />
+            <ToolbarButton icon={<Smile size={20} />} label={t.toolEmoji} onClick={() => setActiveTool(activeTool === 'emoji' ? null : 'emoji')} isActive={activeTool === 'emoji'} />
+            <ToolbarButton icon={<Sparkles size={20} />} label={t.toolSticker} onClick={() => setActiveTool(activeTool === 'sticker' ? null : 'sticker')} isActive={activeTool === 'sticker'} />
+            
+            <div className="w-px h-8 bg-slate-300/50 mx-1"></div>
+            
+            <ToolbarButton 
+                icon={<MousePointer2 size={20} />} 
+                label={t.toolGroup} 
+                onClick={onToggleGroupMode} 
+                isActive={isGroupMode} 
+                className={isGroupMode ? "bg-indigo-500 text-white ring-0" : ""}
+            />
 
-        <ToolbarButton 
-            icon={<Settings size={20} />} 
-            label={t.toolSettings} 
-            onClick={() => setActiveTool(activeTool === 'settings' ? null : 'settings')}
-            isActive={activeTool === 'settings'}
-        />
+            <ToolbarButton 
+                icon={<Settings size={20} />} 
+                label={t.toolSettings} 
+                onClick={() => setActiveTool(activeTool === 'settings' ? null : 'settings')} 
+                isActive={activeTool === 'settings'}
+            />
 
-        <div className="w-px h-6 bg-slate-300 mx-1"></div>
+            <div className="w-px h-8 bg-slate-300/50 mx-1"></div>
 
-        <button 
-            onClick={() => setIsExpanded(false)}
-            className="p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-        >
-            <X size={20} />
-        </button>
+            <ToolbarButton 
+                icon={<MoreHorizontal size={20} />} 
+                label="More" 
+                onClick={() => setActiveTool(activeTool === 'more' ? null : 'more')}
+                isActive={activeTool === 'more'}
+            />
 
+        </div>
       </div>
     </>
   );
@@ -320,13 +342,14 @@ const Toolbar: React.FC<ToolbarProps> = ({
 const ToolbarButton: React.FC<{ icon: React.ReactNode, label: string, onClick: () => void, isActive?: boolean, className?: string }> = ({ icon, label, onClick, isActive, className }) => (
   <button 
     onClick={onClick}
-    className={`p-3 rounded-full transition-all duration-200 group relative ${isActive ? 'bg-indigo-100 text-indigo-600 scale-110' : 'text-slate-600 hover:bg-slate-100 hover:scale-105'} ${className}`}
-    title={label}
+    className={`p-3 rounded-xl transition-all duration-200 group relative flex items-center justify-center hover:scale-110 active:scale-95 ${isActive ? 'bg-indigo-100 text-indigo-600' : 'text-slate-600 hover:bg-white hover:text-indigo-600 hover:shadow-md'} ${className}`}
   >
     {icon}
-    {/* Tooltip */}
-    <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-medium">
+    {/* Tooltip - Top */}
+    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-slate-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-medium shadow-lg z-[70]">
       {label}
+      {/* Little arrow */}
+      <span className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 border-x-4 border-x-transparent border-t-4 border-t-slate-800"></span>
     </span>
   </button>
 );

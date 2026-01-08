@@ -1,9 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
-import { User, Board, ItemType } from '../types';
-import { Plus, Users, X, Info, Wifi, WifiOff, LogOut, ArrowRight, Search, Globe, Home, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, Board, AppNotification } from '../types';
+import { Plus, Info, Wifi, WifiOff, LogOut, ArrowRight, Search, Globe, Home, HeartHandshake, Bell, X } from 'lucide-react';
 import { translations } from '../translations';
-import { getPublicBoards } from '../services/firebaseService';
+import { getPublicBoards, subscribeToNotifications, clearNotifications } from '../services/firebaseService';
+import BoardCard from './BoardCard'; 
 
 interface DashboardProps {
   user: User;
@@ -24,7 +25,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   user, visitedBoards, onOpenBoard, onCreateBoard, onDeleteBoard, onLogout, onOpenAbout, 
   isOnline, appVersion, language, LanguageSelector, setToast
 }) => {
-  const [activeTab, setActiveTab] = useState<'my' | 'community'>('my');
+  const [activeTab, setActiveTab] = useState<'my' | 'joined' | 'community'>('my');
   const [isJoinMode, setIsJoinMode] = useState(false);
   const [topicInput, setTopicInput] = useState('');
   
@@ -33,8 +34,34 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoadingCommunity, setIsLoadingCommunity] = useState(false);
 
+  // Notification State
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
   // @ts-ignore
   const t = translations[language];
+
+  // Subscribe to notifications
+  useEffect(() => {
+    if (isOnline && user) {
+        const unsub = subscribeToNotifications(user.name, (list) => {
+            setNotifications(list);
+        });
+        return () => unsub();
+    }
+  }, [isOnline, user]);
+
+  // Handle click outside notification dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+        if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+            setIsNotifOpen(false);
+        }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Fetch community boards when tab changes
   useEffect(() => {
@@ -82,17 +109,40 @@ const Dashboard: React.FC<DashboardProps> = ({
       }
   };
 
-  // Filter Logic
-  const filteredCommunityBoards = communityBoards.filter(b => 
-    b.topic.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    b.host.toLowerCase().includes(searchTerm.toLowerCase())
+  const handleNotificationClick = (notif: AppNotification) => {
+      window.location.hash = notif.boardId;
+      setIsNotifOpen(false);
+  };
+
+  const handleClearNotifications = () => {
+      clearNotifications(user.name);
+  };
+
+  // Improved Filter Logic: Topic, Host, Date
+  const filteredCommunityBoards = communityBoards.filter(b => {
+    const s = searchTerm.toLowerCase();
+    const dateStr = new Date(b.createdAt).toLocaleDateString().toLowerCase();
+    const monthStr = new Date(b.createdAt).toLocaleDateString(undefined, { month: 'long' }).toLowerCase();
+    
+    return (
+        b.topic.toLowerCase().includes(s) || 
+        b.host.toLowerCase().includes(s) ||
+        dateStr.includes(s) ||
+        monthStr.includes(s)
+    );
+  });
+
+  const myBoards = visitedBoards.filter(b => b.host === user.name);
+  
+  const joinedBoards = visitedBoards.filter(b => 
+      b.host !== user.name && 
+      (b.items && b.items.some(item => item.author === user.name))
   );
 
   return (
     <div className="min-h-[100dvh] bg-slate-50 p-4 sm:p-6 relative overflow-y-auto">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-10 max-w-5xl mx-auto gap-4">
         <div className="flex items-center gap-3">
-           {/* Custom Logo */}
            <div className="w-10 h-10 relative">
               <div className="absolute inset-0 bg-indigo-500 rounded-lg transform rotate-6 opacity-80"></div>
               <div className="absolute inset-0 bg-purple-500 rounded-lg transform -rotate-3 opacity-90"></div>
@@ -104,7 +154,57 @@ const Dashboard: React.FC<DashboardProps> = ({
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{t.dashboardTitle}</h1>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+          
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold ${isOnline ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+              {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
+              <span className="hidden sm:inline">{isOnline ? t.status_online : t.status_offline}</span>
+          </div>
+
           <LanguageSelector />
+          
+          <div className="relative" ref={notifRef}>
+              <button 
+                onClick={() => setIsNotifOpen(!isNotifOpen)}
+                className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors relative"
+              >
+                  <Bell size={20} />
+                  {notifications.length > 0 && (
+                      <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white"></span>
+                  )}
+              </button>
+
+              {isNotifOpen && (
+                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-[60] animate-in fade-in zoom-in-95 duration-200">
+                      <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                          <h3 className="font-bold text-slate-700 text-sm">{t.notifications}</h3>
+                          {notifications.length > 0 && (
+                              <button onClick={handleClearNotifications} className="text-xs text-indigo-500 hover:underline">{t.clearAll}</button>
+                          )}
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                          {notifications.length === 0 ? (
+                              <div className="p-6 text-center text-slate-400 text-xs">{t.noNotifications}</div>
+                          ) : (
+                              notifications.map(notif => (
+                                  <div 
+                                    key={notif.id} 
+                                    onClick={() => handleNotificationClick(notif)}
+                                    className="p-3 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors"
+                                  >
+                                      <div className="text-xs text-slate-800">
+                                          <span className="font-bold">{notif.fromUser}</span> {t.notif_addedItem} <span className="font-bold text-indigo-600">{notif.boardTopic}</span>
+                                      </div>
+                                      <div className="text-[10px] text-slate-400 mt-1">
+                                          {new Date(notif.createdAt).toLocaleTimeString()}
+                                      </div>
+                                  </div>
+                              ))
+                          )}
+                      </div>
+                  </div>
+              )}
+          </div>
+
           <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
             {user.photoURL ? (
               <img src={user.photoURL} alt={user.name} className="w-6 h-6 rounded-full" />
@@ -126,25 +226,24 @@ const Dashboard: React.FC<DashboardProps> = ({
       </header>
 
       <main className="max-w-5xl mx-auto pb-10">
-        <div className={`mb-6 p-3 rounded-xl flex items-center justify-between text-sm ${isOnline ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-orange-50 text-orange-700 border border-orange-200'}`}>
-            <div className="flex items-center gap-2">
-              {isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
-              {isOnline ? t.status_online : t.status_offline}
-            </div>
-            <span className="opacity-50 text-xs">{appVersion}</span>
-        </div>
 
         {/* Tabs */}
-        <div className="flex mb-6 gap-2">
+        <div className="flex mb-6 gap-2 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
             <button 
                 onClick={() => setActiveTab('my')}
-                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-full font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'my' ? 'bg-slate-800 text-white shadow-lg' : 'bg-white text-slate-500 hover:bg-slate-100'}`}
+                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-full font-bold flex items-center justify-center gap-2 transition-all whitespace-nowrap ${activeTab === 'my' ? 'bg-slate-800 text-white shadow-lg' : 'bg-white text-slate-500 hover:bg-slate-100'}`}
             >
                 <Home size={18} /> {t.tab_myBoards}
             </button>
             <button 
+                onClick={() => setActiveTab('joined')}
+                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-full font-bold flex items-center justify-center gap-2 transition-all whitespace-nowrap ${activeTab === 'joined' ? 'bg-purple-600 text-white shadow-lg shadow-purple-200' : 'bg-white text-slate-500 hover:bg-purple-50 hover:text-purple-600'}`}
+            >
+                <HeartHandshake size={18} /> {t.tab_joined}
+            </button>
+            <button 
                 onClick={() => setActiveTab('community')}
-                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-full font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'community' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}
+                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-full font-bold flex items-center justify-center gap-2 transition-all whitespace-nowrap ${activeTab === 'community' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}
             >
                 <Globe size={18} /> {t.tab_community}
             </button>
@@ -199,47 +298,39 @@ const Dashboard: React.FC<DashboardProps> = ({
                     )}
                 </div>
 
-                {/* Visited Boards */}
-                {visitedBoards.map(board => (
-                    <div key={board.id} onClick={() => onOpenBoard(board)} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer h-64 relative overflow-hidden group">
-                    <div className="absolute inset-0 z-0 opacity-20 pointer-events-none transition-opacity group-hover:opacity-30">
-                        {board.backgroundImage ? (
-                            <div className="w-full h-full" style={{ backgroundImage: `url(${board.backgroundImage})`, backgroundSize: board.backgroundSize || 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }} />
-                        ) : (
-                            <div className="w-full h-full" style={{ backgroundColor: board.backgroundColor || '#f0f9ff' }}></div>
-                        )}
-                    </div>
-                    
-                    {/* Delete Button (Only for Host) */}
-                    {board.host === user.name && (
-                        <button 
-                            onClick={(e) => handleDeleteClick(e, board.id)}
-                            className="absolute top-2 right-2 bg-white/80 hover:bg-red-500 hover:text-white text-slate-400 p-2 rounded-full shadow-sm z-20 transition-all opacity-0 group-hover:opacity-100"
-                            title={t.deleteBoard}
-                        >
-                            <Trash2 size={16} />
-                        </button>
-                    )}
-
-                    <div className="relative z-10">
-                        <h3 className="text-xl font-bold text-slate-800 mb-1 truncate">{board.topic}</h3>
-                        <p className="text-xs text-slate-400 flex items-center gap-1"><Users size={12} /> {t.host}: {board.host}</p>
-                    </div>
-                    <div className="flex items-center gap-2 mt-4 pl-2 relative z-10">
-                        {board.items.length === 0 && <span className="text-xs text-slate-400 italic mix-blend-multiply">{t.emptyCanvasLabel}</span>}
-                        {board.items.slice(0, 4).map((item, i) => (
-                        <div key={i} className="-ml-2 w-10 h-10 rounded-full bg-white border-2 border-slate-50 shadow-sm flex items-center justify-center text-[10px] overflow-hidden transform group-hover:translate-x-1 transition-transform" style={{ zIndex: 10 - i }}>
-                            {item.type === ItemType.EMOJI ? item.content : (item.type === ItemType.IMAGE || item.type === ItemType.STICKER ? <img src={item.content} className="w-full h-full object-cover" /> : 'T')}
-                        </div>
-                        ))}
-                    </div>
-                    <div className="mt-auto pt-4 border-t border-slate-100 flex justify-between items-center text-xs text-slate-400 relative z-10">
-                        <span>{new Date(board.createdAt).toLocaleDateString()}</span>
-                        <span className="bg-white/50 px-2 py-1 rounded-full backdrop-blur-sm">{board.items.length} {t.itemsCount}</span>
-                    </div>
-                    </div>
+                {/* My Boards */}
+                {myBoards.map(board => (
+                    <BoardCard 
+                        key={board.id} 
+                        board={board} 
+                        currentUserName={user.name} 
+                        onClick={onOpenBoard} 
+                        onDelete={handleDeleteClick}
+                        t={t}
+                        variant="my"
+                    />
                 ))}
             </div>
+        ) : activeTab === 'joined' ? (
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {joinedBoards.length === 0 ? (
+                    <div className="col-span-full text-center py-20 text-slate-400 flex flex-col items-center gap-4">
+                        <HeartHandshake size={48} className="opacity-20" />
+                        <p>You haven't contributed to any other boards yet.</p>
+                    </div>
+                ) : (
+                    joinedBoards.map(board => (
+                        <BoardCard 
+                            key={board.id} 
+                            board={board} 
+                            currentUserName={user.name} 
+                            onClick={onOpenBoard} 
+                            t={t}
+                            variant="joined"
+                        />
+                    ))
+                )}
+             </div>
         ) : (
             <div>
                 {/* Community Tab */}
@@ -247,7 +338,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                      <Search className="absolute left-3 top-3.5 text-slate-400" size={20} />
                      <input 
                         type="text" 
-                        placeholder={t.search_placeholder} 
+                        placeholder="Search by topic, host name or date..." 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
@@ -264,22 +355,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredCommunityBoards.map(board => (
-                             <div key={board.id} onClick={() => onOpenBoard(board)} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer h-40 group relative overflow-hidden">
-                                 {/* Simple pattern background for community items since we don't fetch heavy BG images */}
-                                 <div className="absolute top-0 right-0 p-10 bg-indigo-50 rounded-bl-[100px] -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
-                                 
-                                 <div className="relative z-10">
-                                    <h3 className="text-lg font-bold text-slate-800 mb-1 truncate">{board.topic}</h3>
-                                    <p className="text-xs text-indigo-500 font-bold flex items-center gap-1 uppercase tracking-wider mb-2">
-                                        {t.host}: {board.host}
-                                    </p>
-                                 </div>
-                                 
-                                 <div className="mt-auto relative z-10 flex justify-between items-center">
-                                    <span className="text-xs text-slate-400">{new Date(board.createdAt).toLocaleDateString()}</span>
-                                    <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-full font-bold">Public</span>
-                                 </div>
-                             </div>
+                             <BoardCard 
+                                key={board.id} 
+                                board={board} 
+                                currentUserName={user.name} 
+                                onClick={onOpenBoard} 
+                                t={t}
+                                variant="community"
+                            />
                         ))}
                     </div>
                 )}

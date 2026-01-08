@@ -42,3 +42,12 @@ export interface Board {
   maxItemsPerUser?: number; // Limit items per user (0 or null or undefined = unlimited)
   isPublic?: boolean; // Whether the board is listed in the community feed
 }
+
+export interface AppNotification {
+  id: string;
+  fromUser: string;
+  boardId: string;
+  boardTopic: string;
+  createdAt: number;
+  read: boolean;
+}
